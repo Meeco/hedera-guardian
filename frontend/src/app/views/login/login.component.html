@@ -2,18 +2,35 @@
     <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
         <mat-form-field class="example-full-width" appearance="outline">
             <mat-label>Username</mat-label>
-            <input matInput formControlName="login">
+            <input matInput formControlName="login" />
         </mat-form-field>
 
         <mat-form-field class="example-full-width" appearance="outline">
             <mat-label>Password</mat-label>
-            <input matInput formControlName="password">
+            <input matInput formControlName="password" />
         </mat-form-field>
-        <p *ngIf="errorMessage">{{errorMessage}}</p>
-
-        <button mat-raised-button type="submit" color="primary" [disabled]="!loginForm.valid">Log In</button>
-
-        <a [routerLink]="['/register']" class="create-link">Create new <mat-icon>chevron_right</mat-icon></a>
+        <button
+            mat-raised-button
+            type="submit"
+            color="primary"
+            [disabled]="!loginForm.valid"
+        >
+            Log In
+        </button>
+        <a [routerLink]="['/register']" class="create-link"
+            >Create new <mat-icon>chevron_right</mat-icon></a
+        >
+        <br />
+        <br />
+        <br />
+        <br />
+        <br />
+        <div>Login using SIOP</div>
+        <qrcode
+            [qrdata]="qrCodeURI"
+            [width]="512"
+            [errorCorrectionLevel]="'L'"
+        ></qrcode>
     </form>
 
     <div *ngIf="loading" class="loading">

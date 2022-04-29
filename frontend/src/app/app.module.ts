@@ -5,13 +5,18 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ToastrModule } from 'ngx-toastr';
-import { AppRoutingModule, AuditorGuard, UserGuard, RootAuthorityGuard } from './app-routing.module';
+import {
+    AppRoutingModule,
+    AuditorGuard,
+    UserGuard,
+    RootAuthorityGuard,
+} from './app-routing.module';
 import { AppComponent } from './app.component';
-import { AuthInterceptor, AuthService } from "./services/auth.service";
-import { ProfileService } from "./services/profile.service";
+import { AuthInterceptor, AuthService } from './services/auth.service';
+import { ProfileService } from './services/profile.service';
 import { TokenService } from './services/token.service';
 import { SchemaService } from './services/schema.service';
-import { HandleErrorsService } from "./services/handle-errors.service";
+import { HandleErrorsService } from './services/handle-errors.service';
 import { AuditService } from './services/audit.service';
 import { PolicyEngineService } from './services/policy-engine.service';
 import { UserProfileComponent } from './views/user-profile/user-profile.component';
@@ -39,6 +44,7 @@ import { SettingsViewComponent } from './views/admin/settings-view/settings-view
 import { IconPreviewDialog } from './components/icon-preview-dialog/icon-preview-dialog.component';
 import { DetailsLogDialog } from './views/admin/details-log-dialog/details-log-dialog.component';
 import { ServiceStatusComponent } from './views/admin/service-status/service-status.component';
+import { QRCodeModule } from 'angularx-qrcode';
 
 @NgModule({
     declarations: [
@@ -60,7 +66,7 @@ import { ServiceStatusComponent } from './views/admin/service-status/service-sta
         AdminHeaderComponent,
         IconPreviewDialog,
         DetailsLogDialog,
-        ServiceStatusComponent
+        ServiceStatusComponent,
     ],
     imports: [
         BrowserModule,
@@ -71,7 +77,8 @@ import { ServiceStatusComponent } from './views/admin/service-status/service-sta
         HttpClientModule,
         FormsModule,
         ToastrModule.forRoot(),
-        PolicyEngineModule
+        PolicyEngineModule,
+        QRCodeModule,
     ],
     exports: [],
     providers: [
@@ -92,16 +99,14 @@ import { ServiceStatusComponent } from './views/admin/service-status/service-sta
         {
             provide: HTTP_INTERCEPTORS,
             useClass: HandleErrorsService,
-            multi: true
+            multi: true,
         },
         {
             provide: HTTP_INTERCEPTORS,
             useClass: AuthInterceptor,
-            multi: true
-        }
+            multi: true,
+        },
     ],
-    bootstrap: [AppComponent]
+    bootstrap: [AppComponent],
 })
-export class AppModule {
-
-}
+export class AppModule {}
