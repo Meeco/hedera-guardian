@@ -9,28 +9,18 @@
             <mat-label>Password</mat-label>
             <input matInput formControlName="password" />
         </mat-form-field>
-        <button
-            mat-raised-button
-            type="submit"
-            color="primary"
-            [disabled]="!loginForm.valid"
-        >
-            Log In
-        </button>
-        <a [routerLink]="['/register']" class="create-link"
-            >Create new <mat-icon>chevron_right</mat-icon></a
-        >
+        <p *ngIf="errorMessage">{{errorMessage}}</p>
+
+        <button mat-raised-button type="submit" color="primary" [disabled]="!loginForm.valid">Log In</button>
+
+        <a [routerLink]="['/register']" class="create-link">Create new <mat-icon>chevron_right</mat-icon></a>
         <br />
         <br />
         <br />
         <br />
         <br />
         <div>Login using SIOP</div>
-        <qrcode
-            [qrdata]="qrCodeURI"
-            [width]="512"
-            [errorCorrectionLevel]="'L'"
-        ></qrcode>
+        <qrcode [qrdata]="qrCodeURI" [width]="512" [errorCorrectionLevel]="'L'"></qrcode>
     </form>
 
     <div *ngIf="loading" class="loading">
