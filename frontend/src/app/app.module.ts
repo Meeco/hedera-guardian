@@ -1,50 +1,51 @@
+import { CommonModule } from '@angular/common';
+import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
+import { QRCodeModule } from 'angularx-qrcode';
 import { ToastrModule } from 'ngx-toastr';
 import {
     AppRoutingModule,
     AuditorGuard,
-    UserGuard,
     RootAuthorityGuard,
+    UserGuard,
 } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { AuthInterceptor, AuthService } from './services/auth.service';
-import { ProfileService } from './services/profile.service';
-import { TokenService } from './services/token.service';
-import { SchemaService } from './services/schema.service';
-import { HandleErrorsService } from './services/handle-errors.service';
+import { IconPreviewDialog } from './components/icon-preview-dialog/icon-preview-dialog.component';
+import { TokenDialog } from './components/token-dialog/token-dialog.component';
+import { MaterialModule } from './material.module';
+import { NewPolicyDialog } from './policy-engine/helpers/new-policy-dialog/new-policy-dialog.component';
+import { PolicyEngineModule } from './policy-engine/policy-engine.module';
 import { AuditService } from './services/audit.service';
+import { AuthInterceptor, AuthService } from './services/auth.service';
+import { DemoService } from './services/demo.service';
+import { HandleErrorsService } from './services/handle-errors.service';
+import { IPFSService } from './services/ipfs.service';
+import { LoggerService } from './services/logger.service';
 import { PolicyEngineService } from './services/policy-engine.service';
-import { UserProfileComponent } from './views/user-profile/user-profile.component';
-import { LoginComponent } from './views/login/login.component';
-import { HomeComponent } from './views/home/home.component';
+import { PolicyHelper } from './services/policy-helper.service';
+import { ProfileService } from './services/profile.service';
+import { SchemaService } from './services/schema.service';
+import { SettingsService } from './services/settings.service';
+import { TokenService } from './services/token.service';
+import { AdminHeaderComponent } from './views/admin/admin-header/admin-panel.component';
+import { DetailsLogDialog } from './views/admin/details-log-dialog/details-log-dialog.component';
+import { LogsViewComponent } from './views/admin/logs-view/logs-view.component';
+import { ServiceStatusComponent } from './views/admin/service-status/service-status.component';
+import { SettingsViewComponent } from './views/admin/settings-view/settings-viewcomponent';
+import { AuditComponent } from './views/audit/audit.component';
 import { HeaderComponent } from './views/header/header.component';
+import { HomeComponent } from './views/home/home.component';
+import { LoginComponent } from './views/login/login.component';
+import { WalletLoginDialog } from './views/login/wallet-login-dialog/wallet-login-dialog.component';
 import { RegisterComponent } from './views/register/register.component';
 import { RootConfigComponent } from './views/root-config/root-config.component';
-import { TokenConfigComponent } from './views/token-config/token-config.component';
 import { SchemaConfigComponent } from './views/schema-config/schema-config.component';
-import { TokenDialog } from './components/token-dialog/token-dialog.component';
-import { AuditComponent } from './views/audit/audit.component';
+import { TokenConfigComponent } from './views/token-config/token-config.component';
 import { TrustChainComponent } from './views/trust-chain/trust-chain.component';
-import { NewPolicyDialog } from './policy-engine/helpers/new-policy-dialog/new-policy-dialog.component';
-import { DemoService } from './services/demo.service';
-import { PolicyHelper } from './services/policy-helper.service';
-import { MaterialModule } from './material.module';
-import { PolicyEngineModule } from './policy-engine/policy-engine.module';
-import { IPFSService } from './services/ipfs.service';
-import { SettingsService } from './services/settings.service';
-import { LoggerService } from './services/logger.service';
-import { AdminHeaderComponent } from './views/admin/admin-header/admin-panel.component';
-import { LogsViewComponent } from './views/admin/logs-view/logs-view.component';
-import { SettingsViewComponent } from './views/admin/settings-view/settings-viewcomponent';
-import { IconPreviewDialog } from './components/icon-preview-dialog/icon-preview-dialog.component';
-import { DetailsLogDialog } from './views/admin/details-log-dialog/details-log-dialog.component';
-import { ServiceStatusComponent } from './views/admin/service-status/service-status.component';
-import { QRCodeModule } from 'angularx-qrcode';
+import { UserProfileComponent } from './views/user-profile/user-profile.component';
 
 @NgModule({
     declarations: [
@@ -64,6 +65,7 @@ import { QRCodeModule } from 'angularx-qrcode';
         LogsViewComponent,
         SettingsViewComponent,
         AdminHeaderComponent,
+        WalletLoginDialog,
         IconPreviewDialog,
         DetailsLogDialog,
         ServiceStatusComponent,
