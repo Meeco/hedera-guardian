@@ -6,7 +6,8 @@ import {
     schemaAPI,
     tokenAPI,
     externalAPI,
-    ipfsAPI
+    ipfsAPI,
+    siopAPI
 } from '@api/service';
 import {Guardians} from '@helpers/guardians';
 import express from 'express';
@@ -30,6 +31,7 @@ Promise.all([
 ]).then(async ([channel]) => {
     const app = express();
     app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
     app.use(express.raw({
         inflate: true,
         limit: '4096kb',
@@ -60,6 +62,7 @@ Promise.all([
     app.use('/demo/', demoAPI);
     app.use('/ipfs', authorizationHelper, ipfsAPI);
     app.use('/logs', authorizationHelper, loggerAPI);
+    app.use('/siop', siopAPI);
     /////////////////////////////////////////
 
     server.listen(PORT, () => {

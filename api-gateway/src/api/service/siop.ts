@@ -1,0 +1,26 @@
+import { Request, Response, Router } from "express";
+
+/**
+ * SIOP account route
+ */
+export const siopAPI = Router();
+
+siopAPI.post("/callback", async (req: Request, res: Response) => {
+  console.log(`Request received: ${JSON.stringify(req.body, null, 2)}`);
+
+  /**
+   * Process requests and authenticate user if seems valid
+   */
+
+  res.status(201).json();
+});
+
+siopAPI.get("/status", async (req: Request, res: Response) => {
+  /**
+   * TODO: potentially we'll need an endpoint where guardian frontent can check if generated QR code was used for authentication
+   * and redirect user to profile/error page
+   *
+   * might use nonce or state to identify which login status is being checked
+   */
+  res.status(201).json();
+});
