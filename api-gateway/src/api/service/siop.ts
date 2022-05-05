@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import { Siop } from "@helpers/siop";
 
 /**
  * SIOP account route
@@ -23,4 +24,16 @@ siopAPI.get("/status", async (req: Request, res: Response) => {
    * might use nonce or state to identify which login status is being checked
    */
   res.status(201).json();
+});
+
+/**
+ * get Authentication Request for OP (OpenId Provider - Wallet)
+ */
+siopAPI.get("/authenticationRequest", async (req: Request, res: Response) => {
+  const siop = new Siop();
+
+  const requestUri = await siop.createAuthenticationRequest();
+  res.status(201).json({
+    requestUri,
+  });
 });

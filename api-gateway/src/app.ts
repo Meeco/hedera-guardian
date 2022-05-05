@@ -19,6 +19,7 @@ import {policyAPI} from '@api/service/policy';
 import {PolicyEngine} from '@helpers/policyEngine';
 import {WebSocketsService} from '@api/service/websockets';
 import { Users } from '@helpers/users';
+import {Siop} from '@helpers/siop';
 import { Wallet } from '@helpers/wallet';
 import { settingsAPI } from '@api/service/settings';
 import { loggerAPI } from '@api/service/logger';
@@ -43,6 +44,7 @@ Promise.all([
     new IPFS().setChannel(channel);
     new PolicyEngine().setChannel(channel);
     new Users().setChannel(channel);
+    new Siop().setChannel(channel);
     new Wallet().setChannel(channel);
 
     const server = createServer(app);

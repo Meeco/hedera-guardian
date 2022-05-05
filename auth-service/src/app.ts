@@ -3,6 +3,7 @@ import {createConnection} from 'typeorm';
 import { fixtures } from '@helpers/fixtures';
 import { AccountService } from '@api/accountService';
 import { WalletService } from '@api/walletService';
+import { SIOPService } from '@api/SIOPService';
 import { Logger } from 'logger-helper';
 import { ApplicationState, ApplicationStates } from 'interfaces';
 
@@ -33,6 +34,7 @@ Promise.all([
     new Logger().setChannel(channel);
     new AccountService(channel);
     new WalletService(channel);
+    new SIOPService(channel);
 
     state.updateState(ApplicationStates.READY);
     new Logger().info('auth service started', ['AUTH_SERVICE']);
