@@ -30,6 +30,7 @@ import { ProfileService } from './services/profile.service';
 import { SchemaService } from './services/schema.service';
 import { SettingsService } from './services/settings.service';
 import { TokenService } from './services/token.service';
+import { SiopService } from './services/siop.service';
 import { AdminHeaderComponent } from './views/admin/admin-header/admin-panel.component';
 import { DetailsLogDialog } from './views/admin/details-log-dialog/details-log-dialog.component';
 import { LogsViewComponent } from './views/admin/logs-view/logs-view.component';
@@ -98,6 +99,7 @@ import { UserProfileComponent } from './views/user-profile/user-profile.componen
         SettingsService,
         LoggerService,
         DemoService,
+        SiopService,
         {
             provide: HTTP_INTERCEPTORS,
             useClass: HandleErrorsService,
