@@ -6,7 +6,7 @@
   },
   "author": "Envision Blockchain Solutions <info@envisionblockchain.com>",
   "dependencies": {
-    "@sphereon/did-auth-siop": "^0.2.10",
+    "@sphereon/did-auth-siop": "github:Meeco/did-auth-siop#1a142fc54fb82188a40da3603623e88472da2c3d",
     "dotenv": "^16.0.0",
     "fastmq": "^1.3.8",
     "interfaces": "file:../interfaces",
