@@ -36,22 +36,6 @@ export class SIOPService {
       .internalSignature(rpKeys.hexPrivateKey, rpKeys.did, rpKeys.didKey)
       .addDidMethod("key")
       .registrationBy(SIOP.PassBy.VALUE)
-      .addPresentationDefinitionClaim({
-        definition: {
-          id: "9a809146-4ea5-4bd4-bcd8-4e6c28c347af",
-          input_descriptors: [
-            {
-              id: "8d78910f-d5b5-4db5-81fe-44dfabd5559a",
-              schema: [
-                {
-                  uri: "https://meecodevstorage0.blob.core.windows.net/credentials/id/1.0/schema.json",
-                },
-              ],
-            },
-          ],
-        },
-        location: SIOP.PresentationLocation.VP_TOKEN, // Toplevel vp_token response expected. This also can be ID_TOKEN
-      })
       .build();
 
     const reqURI = await rp.createAuthenticationRequest();
