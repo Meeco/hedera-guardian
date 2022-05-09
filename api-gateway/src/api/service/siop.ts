@@ -8,12 +8,14 @@ export const siopAPI = Router();
 
 siopAPI.post("/callback", async (req: Request, res: Response) => {
   console.log(`Request received: ${JSON.stringify(req.body, null, 2)}`);
+  const siop = new Siop();
 
   /**
    * Process requests and authenticate user if seems valid
    */
-
-  res.status(201).json();
+  res
+    .status(200)
+    .json(await siop.processAuthenticationResponse(req.body.id_token));
 });
 
 siopAPI.get("/status", async (req: Request, res: Response) => {

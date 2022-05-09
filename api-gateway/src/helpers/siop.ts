@@ -1,13 +1,6 @@
 import { Singleton } from "@helpers/decorators/singleton";
-import { Request } from "express";
-import {
-  ApplicationStates,
-  AuthEvents,
-  MessageAPI,
-  UserRole,
-} from "interfaces";
+import { AuthEvents } from "interfaces";
 import { ServiceRequestsBase } from "@helpers/serviceRequestsBase";
-import { IAuthUser } from "@auth/auth.interface";
 
 /**
  * SIOP service
@@ -18,5 +11,11 @@ export class Siop extends ServiceRequestsBase {
 
   public async createAuthenticationRequest(): Promise<string> {
     return await this.request(AuthEvents.GET_SIOP_AUTH_REQUEST);
+  }
+
+  public async processAuthenticationResponse(id_token): Promise<string> {
+    return await this.request(AuthEvents.REGISTER_OR_LOGIN_USER_USING_SIOP, {
+      jwt: id_token,
+    });
   }
 }

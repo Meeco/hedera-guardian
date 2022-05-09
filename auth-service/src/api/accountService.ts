@@ -6,6 +6,7 @@ import { User } from '@entity/user';
 import * as util from 'util';
 import crypto from 'crypto';
 import { Logger } from 'logger-helper';
+import { SIOPService } from '@api/SIOPService';
 
 export class AccountService {
     constructor(
@@ -195,5 +196,88 @@ export class AccountService {
                 res.send(new MessageError(e.message));
             }
         });
+
+
+        this.channel.response(
+          AuthEvents.REGISTER_OR_LOGIN_USER_USING_SIOP,
+          async (msg, res) => {
+            try {
+              /**
+               *
+               * validate JWT
+               *
+               * try login first
+               * find user with username DID - dont care about password
+               * if user exists then try login and create access token
+               *
+               * or register user
+               * if user do not exists then create new user with DID as username & random password
+               * log user in provide access token
+               * redirect user to choose ROOT_AUTHORITY & provide Hedera Account flow.
+               *
+               *  */
+
+              // validate JWT
+              let verifiedAuthResponseWithJWT;
+
+              try {
+                verifiedAuthResponseWithJWT = SIOPService.verifyAuthResponse(
+                  msg.payload.jwt
+                );
+              } catch (e) {
+                res.send(new MessageError(`Invalid Response ${e.message}`));
+              }
+
+              // try login first
+              const userRepository = getMongoRepository(User);
+
+              const username = verifiedAuthResponseWithJWT.jwt.did;
+              let user = await userRepository.findOne({
+                username,
+              });
+              if (!user) {
+                //create new
+                const password =
+                  Math.random().toString(36).substring(2, 15) +
+                  Math.random().toString(36).substring(2, 15);
+                const passwordDigest = crypto
+                  .createHash("sha256")
+                  .update(password)
+                  .digest("hex");
+
+                //root authority did
+                const parent =
+                  "did:hedera:testnet:4YRUbmaxm3CWRSGDWYRF7E2pFvLsueP1AuH1M3xZQWSK;hedera:testnet:tid=0.0.34344220";
+                user = userRepository.create({
+                  username: username,
+                  password: passwordDigest,
+                  role: UserRole.USER,
+                  parent: parent,
+                  did: user.did,
+                });
+              }
+              //generate new token
+              const accessToken = sign(
+                {
+                  username: user.username,
+                  did: user.did,
+                  role: user.role,
+                },
+                process.env.ACCESS_TOKEN_SECRET
+              );
+              res.send(
+                new MessageResponse({
+                  username: user.username,
+                  did: user.did,
+                  role: user.role,
+                  accessToken: accessToken,
+                })
+              );
+            } catch (e) {
+              new Logger().error(e.toString(), ["AUTH_SERVICE"]);
+              res.send(new MessageError(e.message));
+            }
+          }
+        );
     }
 }
