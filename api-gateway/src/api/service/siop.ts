@@ -8,6 +8,7 @@ export const siopAPI = Router();
 
 siopAPI.post("/callback", async (req: Request, res: Response) => {
   console.log(`Request received: ${JSON.stringify(req.body, null, 2)}`);
+  console.log(`id_token: ${JSON.stringify(req.body.id_token, null, 2)}`);
   const siop = new Siop();
 
   /**

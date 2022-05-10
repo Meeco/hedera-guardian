@@ -13,9 +13,11 @@ export class Siop extends ServiceRequestsBase {
     return await this.request(AuthEvents.GET_SIOP_AUTH_REQUEST);
   }
 
-  public async processAuthenticationResponse(id_token): Promise<string> {
+  public async processAuthenticationResponse(
+    id_token: string
+  ): Promise<string> {
     return await this.request(AuthEvents.REGISTER_OR_LOGIN_USER_USING_SIOP, {
-      jwt: id_token,
+      id_token,
     });
   }
 }
