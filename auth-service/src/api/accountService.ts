@@ -202,26 +202,12 @@ export class AccountService {
           AuthEvents.REGISTER_OR_LOGIN_USER_USING_SIOP,
           async (msg, res) => {
             try {
-              /**
-               *
-               * validate JWT
-               *
-               * try login first
-               * find user with username DID - dont care about password
-               * if user exists then try login and create access token
-               *
-               * or register user
-               * if user do not exists then create new user with DID as username & random password
-               * log user in provide access token
-               * redirect user to choose ROOT_AUTHORITY & provide Hedera Account flow.
-               *
-               *  */
-
               // validate JWT
               let verifiedAuthResponseWithJWT;
 
               try {
-                verifiedAuthResponseWithJWT = SIOPService.verifyAuthResponse(
+                const siopService = new SIOPService(this.channel);
+                verifiedAuthResponseWithJWT = siopService.verifyAuthResponse(
                   msg.payload.jwt
                 );
               } catch (e) {
@@ -246,6 +232,7 @@ export class AccountService {
                   .digest("hex");
 
                 //root authority did
+                //TODO: find out parent authority DID
                 const parent =
                   "did:hedera:testnet:4YRUbmaxm3CWRSGDWYRF7E2pFvLsueP1AuH1M3xZQWSK;hedera:testnet:tid=0.0.34344220";
                 user = userRepository.create({

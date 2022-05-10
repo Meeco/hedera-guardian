@@ -1,10 +1,15 @@
-import { RP, SIOP } from "@sphereon/did-auth-siop";
+import * as DID_SIOP from "did-siop";
 import { AuthEvents, MessageError, MessageResponse } from "interfaces";
 
 export class SIOPService {
   constructor(private channel) {
     this.registerListeners();
+    this.getRp().then((rp) => {
+      this._rp = rp;
+    });
   }
+
+  private _rp: any = undefined;
 
   registerListeners(): void {
     this.channel.response(
@@ -23,48 +28,19 @@ export class SIOPService {
     );
   }
 
+  public get rp() {
+    return this._rp;
+  }
+
   private async createAuthenticationRequest() {
-    const rp = this.getRP();
-
-    const reqURI = await rp.createAuthenticationRequest();
-    // console.log(reqURI.encodedUri);
-    return reqURI.encodedUri;
+    const reqURI = await this._rp.generateRequest();
+    return reqURI;
   }
 
-  private getRP() {
-    const rpKeys = {
-      hexPrivateKey: process.env.SIOP_KEY,
-      did: process.env.SIOP_DID,
-      didKey: process.env.SIOP_DID_KEY,
-    };
-    // The relying party (web) private key and DID and DID key (public key)
-    return RP.builder()
-      .redirect(process.env.SIOP_REDIRECT_URI)
-      .requestBy(SIOP.PassBy.VALUE)
-      .internalSignature(rpKeys.hexPrivateKey, rpKeys.did, rpKeys.didKey)
-      .addDidMethod("key")
-      .registrationBy(SIOP.PassBy.VALUE)
-      .build();
-  }
-
-  public static async verifyAuthResponse(authResponseJWT) {
-    const rpKeys = {
-      hexPrivateKey: process.env.SIOP_KEY,
-      did: process.env.SIOP_DID,
-      didKey: process.env.SIOP_DID_KEY,
-    };
-
-    const rp = RP.builder()
-      .redirect(process.env.SIOP_REDIRECT_URI)
-      .requestBy(SIOP.PassBy.VALUE)
-      .internalSignature(rpKeys.hexPrivateKey, rpKeys.did, rpKeys.didKey)
-      .addDidMethod("key")
-      .registrationBy(SIOP.PassBy.VALUE)
-      .build();
-
+  public async verifyAuthResponse(authResponseJWT) {
     try {
       const verifiedAuthResponseWithJWT =
-        await rp.verifyAuthenticationResponseJwt(authResponseJWT, {
+        await this._rp.verifyAuthenticationResponseJwt(authResponseJWT, {
           audience: process.env.SIOP_REDIRECT_URI,
         });
 
@@ -77,5 +53,31 @@ export class SIOPService {
     } catch (e) {
       return e;
     }
+  }
+
+  private async getRp() {
+    const rpKeys = {
+      hexPrivateKey: process.env.SIOP_KEY,
+      did: process.env.SIOP_DID,
+      didKey: process.env.SIOP_DID_KEY,
+    };
+    // The relying party (web) private key and DID and DID key (public key)
+    const rp = await DID_SIOP.RP.getRP(
+      process.env.SIOP_REDIRECT_URI, // RP's redirect_uri
+      rpKeys.did, // RP's did
+      {
+        jwks_uri: `https://uniresolver.io/1.0/identifiers/${rpKeys.did};transform-keys=jwks`,
+        id_token_signed_response_alg: ["ES256K", "ES256K-R", "EdDSA", "RS256"],
+      }
+    );
+
+    rp.addSigningParams(
+      rpKeys.hexPrivateKey,
+      rpKeys.didKey,
+      DID_SIOP.KEY_FORMATS.BASE58,
+      DID_SIOP.ALGORITHMS["EdDSA"]
+    );
+
+    return rp;
   }
 }
