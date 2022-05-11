@@ -20,4 +20,10 @@ export class Siop extends ServiceRequestsBase {
       id_token,
     });
   }
+
+  public async getStatus(qrCodeState: string): Promise<string> {
+    return await this.request(AuthEvents.LOGIN_STATUS_SIOP, {
+      qrCodeState,
+    });
+  }
 }

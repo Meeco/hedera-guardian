@@ -10,6 +10,7 @@ import crypto from "crypto";
 import { User } from "@entity/user";
 import { Logger } from "logger-helper";
 import { sign } from "jsonwebtoken";
+import { SiopSession } from "@entity/siop-session";
 
 export class SIOPService {
   constructor(private channel) {
@@ -21,11 +22,30 @@ export class SIOPService {
 
   private _rp: any = undefined;
 
+  public get rp() {
+    return this._rp;
+  }
+
   registerListeners(): void {
     this.channel.response(
       AuthEvents.GET_SIOP_AUTH_REQUEST,
       async (msg, res) => {
-        const { token } = msg.payload;
+        // randomly generated state and nonce
+        const nonce =
+          Math.random().toString(36).substring(2, 15) +
+          Math.random().toString(36).substring(2, 15);
+
+        const state =
+          Math.random().toString(36).substring(2, 15) +
+          Math.random().toString(36).substring(2, 15);
+
+        // save in db
+        const sessionRepo = getMongoRepository(SiopSession);
+        const siopSession = sessionRepo.create({
+          nonce,
+          state,
+        });
+        await sessionRepo.save(siopSession);
 
         try {
           res.send(
@@ -36,6 +56,22 @@ export class SIOPService {
         }
       }
     );
+
+    this.channel.response(AuthEvents.LOGIN_STATUS_SIOP, async (msg, res) => {
+      const { nonce, state } = msg.payload;
+
+      /**
+       * TODO: find nonce and state and check if username present
+       * if user is registered or login then there would be username in field
+       * find user by username let user = await userRepository.findOne({ username: username });
+       * generate access token and add to response   const accessToken = this.generateAccessToken(user);
+       */
+      try {
+        res.send(new MessageResponse(await this.createAuthenticationRequest()));
+      } catch (e) {
+        res.send(new MessageError(e.message));
+      }
+    });
 
     this.channel.response(
       AuthEvents.REGISTER_OR_LOGIN_USER_USING_SIOP,
@@ -59,7 +95,7 @@ export class SIOPService {
 
           const username = verifiedAuthResponseWithJWT.payload.did;
           let user = await userRepository.findOne({ username: username });
-
+          console.log(`user ${JSON.stringify(user)}`);
           if (!user) {
             //create new
             const password =
@@ -70,29 +106,22 @@ export class SIOPService {
               .update(password)
               .digest("hex");
 
-            //root authority did
-            //TODO: find out parent authority DID
-            const parent =
-              "did:hedera:testnet:4YRUbmaxm3CWRSGDWYRF7E2pFvLsueP1AuH1M3xZQWSK;hedera:testnet:tid=0.0.34344220";
+            console.log(`username ${username}`);
 
             user = userRepository.create({
               username: username,
               password: passwordDigest,
               role: UserRole.USER,
-              parent: parent,
               did: username,
             });
           }
 
+          user = await userRepository.save(user);
+
+          console.log(`user ${JSON.stringify(user)}`);
+
           //generate new token
-          const accessToken = sign(
-            {
-              username: user.username,
-              did: user.did,
-              role: user.role,
-            },
-            process.env.ACCESS_TOKEN_SECRET
-          );
+          const accessToken = this.generateAccessToken(user);
           res.send(
             new MessageResponse({
               username: user.username,
@@ -109,21 +138,38 @@ export class SIOPService {
     );
   }
 
-  public get rp() {
-    return this._rp;
+  private generateAccessToken(user: User) {
+    return sign(
+      {
+        username: user.username,
+        did: user.did,
+        role: user.role,
+      },
+      process.env.ACCESS_TOKEN_SECRET
+    );
   }
 
   private async createAuthenticationRequest() {
+    /**
+     *
+     * TODO: generate request with state and nonce
+     * store state and nonce to DB
+     *
+     */
     const reqURI = await this._rp.generateRequest();
     return reqURI;
   }
 
-  public async verifyAuthResponse(authResponseJWT) {
+  private async verifyAuthResponse(authResponseJWT) {
     try {
+      console.log("validating response" + JSON.stringify(authResponseJWT));
       const verifiedAuthResponseWithJWT = await this._rp.validateResponse(
         authResponseJWT
       );
 
+      console.log(
+        "validating response" + JSON.stringify(verifiedAuthResponseWithJWT)
+      );
       console.log(verifiedAuthResponseWithJWT);
       console.log(`is valid:  ${verifiedAuthResponseWithJWT.payload.did}`);
 
@@ -131,6 +177,7 @@ export class SIOPService {
       // TODO: retrieve state and nonce from DB and validate
       // if(!verifiedAuthResponseWithJWT.jwt || verifiedAuthResponseWithJWT.payload.state != "b32f0087fc9816eb813fd11f" || verifiedAuthResponseWithJWT.payload.nonce!= "qBrR7mqnY3Qr49dAZycPF8FzgE83m6H0c2l0bzP4xSg")
     } catch (e) {
+      console.log(e);
       return e;
     }
   }

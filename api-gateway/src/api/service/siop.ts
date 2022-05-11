@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { Siop } from "@helpers/siop";
+import { Logger } from "logger-helper";
 
 /**
  * SIOP account route
@@ -14,19 +15,41 @@ siopAPI.post("/callback", async (req: Request, res: Response) => {
   /**
    * Process requests and authenticate user if seems valid
    */
-  res
-    .status(200)
-    .json(await siop.processAuthenticationResponse(req.body.id_token));
+  try {
+    res
+      .status(200)
+      .json(await siop.processAuthenticationResponse(req.body.id_token));
+  } catch (e) {
+    new Logger().error(e.message, ["API_GATEWAY"]);
+    res.status(500).send({ code: 500, message: e.message });
+  }
 });
 
-siopAPI.get("/status", async (req: Request, res: Response) => {
+siopAPI.post("/status", async (req: Request, res: Response) => {
+  const siop = new Siop();
   /**
    * TODO: potentially we'll need an endpoint where guardian frontent can check if generated QR code was used for authentication
    * and redirect user to profile/error page
    *
    * might use nonce or state to identify which login status is being checked
+   *
    */
-  res.status(201).json();
+  //req.body will get nonce & state of QRCode
+  try {
+    console.log(`request received with body ${req.body}`);
+    let qrCodeState = req.body;
+    if (qrCodeState && qrCodeState.nonce && qrCodeState.state) {
+      res.status(200).json(await siop.getStatus(qrCodeState));
+    } else {
+      res.status(400).json({
+        code: 400,
+        message: "invalid request: missing nonce or state",
+      });
+    }
+  } catch (e) {
+    new Logger().error(e.message, ["API_GATEWAY"]);
+    res.status(500).send({ code: 500, message: e.message });
+  }
 });
 
 /**

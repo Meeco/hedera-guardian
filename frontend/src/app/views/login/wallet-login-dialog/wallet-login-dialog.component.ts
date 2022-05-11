@@ -24,17 +24,15 @@ export class WalletLoginDialog implements OnInit, OnDestroy {
         this.siop.getSIOPAuthRequestUri().subscribe((result) => {
             console.log(result);
             this.qrCodeURI = result.requestUri;
-        });
 
-        /**
-         * Start some sort of polling or whatever to check if user has submitted token to the backend
-         */
+            // start polling
+            this.siop.getStatus().subscribe((status) => {
+                console.log(status);
+            });
+        });
     }
 
     ngOnDestroy() {
-        console.log('dialog closed #onDestroy');
-        /**
-         * Stop polling
-         */
+        this.siop.stopPollingStatus();
     }
 }
