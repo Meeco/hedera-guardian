@@ -13,12 +13,15 @@ export class SiopService implements OnDestroy {
     private status$: Observable<any>;
     private stopPolling = new Subject();
 
+    private static MOCKED_NONCE = 'mocked-nonce';
+    private static MOCKED_STATE = 'mocked-state';
+
     constructor(private http: HttpClient) {
         this.status$ = timer(1, 3000).pipe(
             switchMap(() =>
                 this.http.post<any>(`${this.url}/status`, {
-                    nonce: 'test_nonce',
-                    state: 'test_state',
+                    nonce: SiopService.MOCKED_NONCE,
+                    state: SiopService.MOCKED_STATE,
                 })
             ),
             retry(),

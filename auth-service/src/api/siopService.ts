@@ -21,6 +21,8 @@ export class SIOPService {
   }
 
   private _rp: any = undefined;
+  private static MOCKED_NONCE = "mocked-nonce";
+  private static MOCKED_STATE = "mocked-state";
 
   public get rp() {
     return this._rp;
@@ -31,13 +33,13 @@ export class SIOPService {
       AuthEvents.GET_SIOP_AUTH_REQUEST,
       async (msg, res) => {
         // randomly generated state and nonce
-        const nonce =
-          Math.random().toString(36).substring(2, 15) +
-          Math.random().toString(36).substring(2, 15);
+        const nonce = SIOPService.MOCKED_NONCE;
+        // Math.random().toString(36).substring(2, 15) +
+        // Math.random().toString(36).substring(2, 15);
 
-        const state =
-          Math.random().toString(36).substring(2, 15) +
-          Math.random().toString(36).substring(2, 15);
+        const state = SIOPService.MOCKED_STATE;
+        // Math.random().toString(36).substring(2, 15) +
+        // Math.random().toString(36).substring(2, 15);
 
         // save in db
         const sessionRepo = getMongoRepository(SiopSession);
@@ -58,16 +60,38 @@ export class SIOPService {
     );
 
     this.channel.response(AuthEvents.LOGIN_STATUS_SIOP, async (msg, res) => {
+      console.log(`nonce ${JSON.stringify(msg.payload)}`);
       const { nonce, state } = msg.payload;
+      console.log(`nonce ${nonce}`);
+      console.log(`state ${state}`);
 
-      /**
-       * TODO: find nonce and state and check if username present
-       * if user is registered or login then there would be username in field
-       * find user by username let user = await userRepository.findOne({ username: username });
-       * generate access token and add to response   const accessToken = this.generateAccessToken(user);
-       */
       try {
-        res.send(new MessageResponse(await this.createAuthenticationRequest()));
+        const sessionRepo = getMongoRepository(SiopSession);
+        let siopSession = await sessionRepo.findOne({
+          nonce: nonce,
+          state: state,
+        });
+
+        if (siopSession && siopSession.username) {
+          const userRepository = getMongoRepository(User);
+          let user = await userRepository.findOne({
+            username: siopSession.username,
+          });
+          if (user) {
+            const accessToken = this.generateAccessToken(user);
+            res.send(
+              new MessageResponse({
+                username: user.username,
+                did: user.did,
+                role: user.role,
+                accessToken: accessToken,
+              })
+            );
+          } else {
+            //TODO throw an error - user do not exists
+          }
+        }
+        res.send(new MessageResponse(siopSession));
       } catch (e) {
         res.send(new MessageError(e.message));
       }
@@ -94,6 +118,8 @@ export class SIOPService {
           const userRepository = getMongoRepository(User);
 
           const username = verifiedAuthResponseWithJWT.payload.did;
+          const nonce = SIOPService.MOCKED_NONCE; //verifiedAuthResponseWithJWT.payload.nonce
+          const state = SIOPService.MOCKED_STATE; //verifiedAuthResponseWithJWT.payload.state
           let user = await userRepository.findOne({ username: username });
           console.log(`user ${JSON.stringify(user)}`);
           if (!user) {
@@ -119,6 +145,8 @@ export class SIOPService {
           user = await userRepository.save(user);
 
           console.log(`user ${JSON.stringify(user)}`);
+
+          //check for nonce and state
 
           //generate new token
           const accessToken = this.generateAccessToken(user);
