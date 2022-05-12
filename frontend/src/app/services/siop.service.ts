@@ -17,7 +17,7 @@ export class SiopService implements OnDestroy {
     private static MOCKED_STATE = 'mocked-state';
 
     constructor(private http: HttpClient) {
-        this.status$ = timer(1, 3000).pipe(
+        this.status$ = timer(300, 3000).pipe(
             switchMap(() =>
                 this.http.post<any>(`${this.url}/status`, {
                     nonce: SiopService.MOCKED_NONCE,

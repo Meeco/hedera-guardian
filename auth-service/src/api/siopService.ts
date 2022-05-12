@@ -88,7 +88,7 @@ export class SIOPService {
               })
             );
           } else {
-            //TODO throw an error - user do not exists
+            res.send(new MessageError("unknown user"));
           }
         }
         res.send(new MessageResponse(siopSession));
@@ -138,7 +138,9 @@ export class SIOPService {
               username: username,
               password: passwordDigest,
               role: UserRole.USER,
-              did: username,
+              did: null,
+              parent: null,
+              hederaAccountId: null,
             });
           }
 
@@ -146,10 +148,22 @@ export class SIOPService {
 
           console.log(`user ${JSON.stringify(user)}`);
 
-          //check for nonce and state
-
           //generate new token
           const accessToken = this.generateAccessToken(user);
+
+          //update siop session using nonce and state
+          await getMongoRepository(SiopSession).update(
+            {
+              nonce: SIOPService.MOCKED_NONCE,
+              state: SIOPService.MOCKED_STATE,
+            },
+            {
+              nonce: SIOPService.MOCKED_NONCE,
+              state: SIOPService.MOCKED_STATE,
+              username: user.username,
+            }
+          );
+
           res.send(
             new MessageResponse({
               username: user.username,
