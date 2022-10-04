@@ -5,7 +5,8 @@ services:
     restart: always
     expose:
       - 27017
-
+    ports:
+      - "27017:27017"  
   api-docs:
     build:
       context: .

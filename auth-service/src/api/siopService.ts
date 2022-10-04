@@ -135,7 +135,7 @@ export class SIOPService {
             console.log(`username ${username}`);
 
             user = userRepository.create({
-              username: username,
+              username: "Vijay Shiyani",
               password: passwordDigest,
               role: UserRole.USER,
               did: null,
