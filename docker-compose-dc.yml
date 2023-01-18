@@ -1,0 +1,114 @@
+version: "3.8"
+services:
+  mongo:
+    image: mongo
+    restart: always
+    expose:
+      - 27017
+
+  api-docs:
+    image: gcr.io/hedera-registry/api-docs
+    restart: always
+    expose:
+      - 3001
+
+  message-broker:
+    image: nats
+    restart: always
+    expose:
+      - 4222
+    ports:
+      - '8222:8222'
+    command: '--http_port 8222'
+
+  logger-service:
+    image: gcr.io/hedera-registry/logger-service
+    restart: always
+    depends_on:
+      - message-broker
+
+  auth-service:
+    image: gcr.io/hedera-registry/auth-service
+    restart: always
+    depends_on:
+      - mongo
+      - message-broker
+      - logger-service
+
+  api-gateway:
+    image: gcr.io/hedera-registry/api-gateway
+    restart: always
+    expose:
+      - 3002
+    depends_on:
+      - mongo
+      - message-broker
+      - guardian-service
+      - auth-service
+      - logger-service
+
+  guardian-service:
+    build:
+      context: .
+      dockerfile: ./guardian-service/Dockerfile
+    restart: always
+    depends_on:
+      - mongo
+      - message-broker
+      - auth-service
+      - logger-service
+
+  ipfs-client:
+    build:
+      context: .
+      dockerfile: ./ipfs-client/Dockerfile
+    restart: always
+    ports:
+      - "5001:5001"
+      - "5002:5002"
+      - "4001:4001"
+      - "4002:4002"
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      - message-broker
+      - logger-service
+
+  mrv-sender:
+    build:
+      context: .
+      dockerfile: ./mrv-sender/Dockerfile
+    restart: always
+    expose:
+      - 3005
+
+  topic-viewer:
+    image: gcr.io/hedera-registry/topic-viewer
+    restart: always
+    expose:
+      - 3006
+
+  web-proxy:
+    build:
+      context: .
+      dockerfile: ./web-proxy/Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - guardian-service
+      - auth-service
+      - api-gateway
+      - api-docs
+      - mrv-sender
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /tmp/acme_challenge:/tmp/acme_challenge
+volumes:
+  mongo:
+    # volume-guardian-service:
+    # volume-ui-service:
+    # volume-mrv-sender:
+    #  volume-message-broker:
+    

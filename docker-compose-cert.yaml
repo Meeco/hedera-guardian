@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  letsencrypt:
+    container_name: "certbot-service"
+    image: certbot/certbot
+    command: sh -c "certbot certonly --webroot -w /tmp/acme_challenge -d guardian-testnet.trustury.tech --text --agree-tos --email systems@meeco.me --rsa-key-size 4096 --verbose --keep-until-expiring --preferred-challenges=http"
+    entrypoint: ""
+    volumes:
+      - "/etc/letsencrypt:/etc/letsencrypt"
+      - "/tmp/acme_challenge:/tmp/acme_challenge"
+    environment:
+      - TERM=xterm
