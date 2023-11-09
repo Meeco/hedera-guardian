@@ -1,44 +1,36 @@
+import { DidDocumentStatus, DocumentStatus, MessageAPI, Schema, SchemaEntity, SchemaHelper, TopicType, UserRole, WorkerTaskType } from '@guardian/interfaces';
+import { ApiResponse } from '@api/helpers/api-response';
 import {
-    DidDocumentStatus,
-    DocumentStatus,
-    MessageAPI,
-    Schema,
-    SchemaEntity,
-    SchemaHelper,
-    TopicType,
-    UserRole, WorkerTaskType
-} from '@guardian/interfaces';
-import { VcHelper } from '@helpers/vc-helper';
-import { KeyType, Wallet } from '@helpers/wallet';
-import { Users } from '@helpers/users';
-import {
+    DataBaseHelper,
+    DidDocument as DidDocumentCollection,
     DIDDocument,
     DIDMessage,
+    IAuthUser,
+    KeyType,
+    Logger,
     MessageAction,
+    MessageError,
+    MessageResponse,
     MessageServer,
     RegistrationMessage,
+    RunFunctionAsync,
+    Schema as SchemaCollection,
+    Settings,
+    Topic,
     TopicConfig,
     TopicHelper,
-    VCMessage
-} from '@hedera-modules';
-import { Topic } from '@entity/topic';
-import { DidDocument as DidDocumentCollection } from '@entity/did-document';
-import { VcDocument as VcDocumentCollection } from '@entity/vc-document';
-import { Schema as SchemaCollection } from '@entity/schema';
-import { ApiResponse } from '@api/api-response';
-import {
-    MessageBrokerChannel,
-    MessageResponse,
-    MessageError,
-    Logger,
-    DataBaseHelper,
-    IAuthUser
+    Users,
+    VcDocument as VcDocumentCollection,
+    VcHelper,
+    VCMessage,
+    Wallet,
+    Workers
 } from '@guardian/common';
-import { publishSystemSchema } from './schema.service';
-import { Settings } from '@entity/settings';
 import { emptyNotifier, initNotifier, INotifier } from '@helpers/notifier';
-import { Workers } from '@helpers/workers';
 import { RestoreDataFromHedera } from '@helpers/restore-data-from-hedera';
+import { publishSystemSchema } from './helpers/schema-publish-helper';
+import { Controller, Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 
 /**
  * Get global topic
@@ -56,7 +48,7 @@ async function getGlobalTopic(): Promise<TopicConfig | null> {
         const INITIALIZATION_TOPIC_KEY = topicKey?.value || process.env.INITIALIZATION_TOPIC_KEY;
         return new TopicConfig({ topicId: INITIALIZATION_TOPIC_ID }, null, INITIALIZATION_TOPIC_KEY);
     } catch (error) {
-        console.log(error);
+        console.error(error);
         return null;
     }
 }
@@ -153,8 +145,16 @@ async function createUserProfile(profile: any, notifier: INotifier, user?: IAuth
     // ------------------------
     notifier.completedAndStart('Publish DID Document');
     logger.info('Create DID Document', ['GUARDIAN_SERVICE']);
-    const didObject = DIDDocument.create(hederaAccountKey, topicConfig.topicId);
+    const didObject = await DIDDocument.create(hederaAccountKey, topicConfig.topicId);
     const userDID = didObject.getDid();
+
+    const existingUser = await new DataBaseHelper(DidDocumentCollection).findOne({did: userDID});
+    if (existingUser) {
+        notifier.completedAndStart('User restored');
+        notifier.completed();
+        return userDID;
+    }
+
     const didMessage = new DIDMessage(MessageAction.CreateDID);
     didMessage.setDocument(didObject);
     const didDoc = await new DataBaseHelper(DidDocumentCollection).save({
@@ -221,6 +221,27 @@ async function createUserProfile(profile: any, notifier: INotifier, user?: IAuth
             if (schema) {
                 notifier.info('Publish System Schema (USER)');
                 logger.info('Publish System Schema (USER)', ['GUARDIAN_SERVICE']);
+                schema.creator = didMessage.did;
+                schema.owner = didMessage.did;
+                const item = await publishSystemSchema(schema, messageServer, MessageAction.PublishSystemSchema);
+                await new DataBaseHelper(SchemaCollection).save(item);
+            }
+        }
+
+        schema = await new DataBaseHelper(SchemaCollection).findOne({
+            entity: SchemaEntity.RETIRE_TOKEN,
+            readonly: true,
+            topicId: topicConfig.topicId,
+        });
+        if (!schema) {
+            schema = await new DataBaseHelper(SchemaCollection).findOne({
+                entity: SchemaEntity.RETIRE_TOKEN,
+                system: true,
+                active: true
+            });
+            if (schema) {
+                notifier.info('Publish System Schema (RETIRE)');
+                logger.info('Publish System Schema (RETIRE)', ['GUARDIAN_SERVICE']);
                 schema.creator = didMessage.did;
                 schema.owner = didMessage.did;
                 const item = await publishSystemSchema(schema, messageServer, MessageAction.PublishSystemSchema);
@@ -313,14 +334,62 @@ async function createUserProfile(profile: any, notifier: INotifier, user?: IAuth
     return userDID;
 }
 
+@Controller()
+export class ProfileController {
+    // @MessagePattern(MessageAPI.GET_BALANCE)
+    // async getBalance(@Payload() msg: any, @Ctx() context: NatsContext) {
+    //     try {
+    //         const { username } = msg;
+    //         const wallet = new Wallet();
+    //         const users = new Users();
+    //         const workers = new Workers();
+    //         const user = await users.getUser(username);
+    //
+    //         if (!user) {
+    //             return new MessageResponse(null);
+    //         }
+    //
+    //         if (!user.hederaAccountId) {
+    //             return new MessageResponse(null);
+    //         }
+    //
+    //         const key = await wallet.getKey(user.walletToken, KeyType.KEY, user.did);
+    //         const balance = await workers.addNonRetryableTask({
+    //             type: WorkerTaskType.GET_USER_BALANCE,
+    //             data: {
+    //                 hederaAccountId: user.hederaAccountId,
+    //                 hederaAccountKey: key
+    //             }
+    //         }, 20);
+    //         // return {
+    //         //     balance,
+    //         //     unit: 'Hbar',
+    //         //     user: user ? {
+    //         //         username: user.username,
+    //         //         did: user.did
+    //         //     } : null
+    //         // }
+    //         return new MessageResponse({
+    //             balance,
+    //             unit: 'Hbar',
+    //             user: user ? {
+    //                 username: user.username,
+    //                 did: user.did
+    //             } : null
+    //         });
+    //     } catch (error) {
+    //         new Logger().error(error, ['GUARDIAN_SERVICE']);
+    //         console.error(error);
+    //         return new MessageError(error, 500);
+    //     }
+    // }
+}
+
 /**
  * Connect to the message broker methods of working with Address books.
- *
- * @param channel - channel
- *
  */
-export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: MessageBrokerChannel) {
-    ApiResponse(channel, MessageAPI.GET_BALANCE, async (msg) => {
+export function profileAPI() {
+    ApiResponse(MessageAPI.GET_BALANCE, async (msg) => {
         try {
             const { username } = msg;
             const wallet = new Wallet();
@@ -343,7 +412,7 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
                     hederaAccountId: user.hederaAccountId,
                     hederaAccountKey: key
                 }
-            }, 1);
+            }, 20);
             return new MessageResponse({
                 balance,
                 unit: 'Hbar',
@@ -359,7 +428,7 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
         }
     });
 
-    ApiResponse(channel, MessageAPI.GET_USER_BALANCE, async (msg) => {
+    ApiResponse(MessageAPI.GET_USER_BALANCE, async (msg) => {
         try {
             const { username } = msg;
 
@@ -384,7 +453,7 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
                     hederaAccountId: user.hederaAccountId,
                     hederaAccountKey: key
                 }
-            }, 1);
+            }, 20);
 
             return new MessageResponse(balance);
         } catch (error) {
@@ -397,7 +466,7 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
     /**
      * @deprecated 2022-07-27
      */
-    ApiResponse(channel, MessageAPI.CREATE_USER_PROFILE, async (msg) => {
+    ApiResponse(MessageAPI.CREATE_USER_PROFILE, async (msg) => {
         try {
             const userDID = await createUserProfile(msg, emptyNotifier());
 
@@ -409,7 +478,7 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
         }
     });
 
-    ApiResponse(channel, MessageAPI.CREATE_USER_PROFILE_COMMON, async (msg) => {
+    ApiResponse(MessageAPI.CREATE_USER_PROFILE_COMMON, async (msg) => {
         try {
             const { username, profile } = msg;
 
@@ -429,87 +498,102 @@ export function profileAPI(channel: MessageBrokerChannel, apiGatewayChannel: Mes
         }
     });
 
-    ApiResponse(channel, MessageAPI.CREATE_USER_PROFILE_COMMON_ASYNC, async (msg) => {
-        const { username, profile, taskId } = msg;
-        const notifier = initNotifier(apiGatewayChannel, taskId);
+    ApiResponse(MessageAPI.CREATE_USER_PROFILE_COMMON_ASYNC, async (msg) => {
+        const { username, profile, task } = msg;
+        const notifier = await initNotifier(task);
 
-        setImmediate(async () => {
-            try {
-                if (!profile.hederaAccountId) {
-                    notifier.error('Invalid Hedera Account Id');
-                    return;
-                }
-                if (!profile.hederaAccountKey) {
-                    notifier.error('Invalid Hedera Account Key');
-                    return;
-                }
-
-                const did = await setupUserProfile(username, profile, notifier);
-                notifier.result(did);
-            } catch (error) {
-                new Logger().error(error, ['GUARDIAN_SERVICE']);
-                notifier.error(error);
+        RunFunctionAsync(async () => {
+            if (!profile.hederaAccountId) {
+                notifier.error('Invalid Hedera Account Id');
+                return;
             }
+            if (!profile.hederaAccountKey) {
+                notifier.error('Invalid Hedera Account Key');
+                return;
+            }
+
+            const did = await setupUserProfile(username, profile, notifier);
+            notifier.result(did);
+        }, async (error) => {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            notifier.error(error);
         });
 
-        return new MessageResponse({ taskId });
+        return new MessageResponse(task);
     });
 
-    ApiResponse(channel, MessageAPI.RESTORE_USER_PROFILE_COMMON_ASYNC, async (msg) => {
-        const { username, profile, taskId } = msg;
-        const notifier = initNotifier(apiGatewayChannel, taskId);
+    ApiResponse(MessageAPI.RESTORE_USER_PROFILE_COMMON_ASYNC, async (msg) => {
+        const { username, profile, task } = msg;
+        const notifier = await initNotifier(task);
 
-        setImmediate(async () => {
-            try {
-                if (!profile.hederaAccountId) {
-                    notifier.error('Invalid Hedera Account Id');
-                    return;
-                }
-                if (!profile.hederaAccountKey) {
-                    notifier.error('Invalid Hedera Account Key');
-                    return;
-                }
-
-                const restore = new RestoreDataFromHedera();
-                await restore.restoreRootAuthority(username, profile.hederaAccountId, profile.hederaAccountKey, profile.topicId)
-                console.log(username, profile.hederaAccountId, profile.hederaAccountKey, profile.topicId)
-
-                notifier.result('did');
-            } catch (error) {
-                new Logger().error(error, ['GUARDIAN_SERVICE']);
-                notifier.error(error);
+        RunFunctionAsync(async () => {
+            if (!profile.hederaAccountId) {
+                notifier.error('Invalid Hedera Account Id');
+                return;
             }
+            if (!profile.hederaAccountKey) {
+                notifier.error('Invalid Hedera Account Key');
+                return;
+            }
+
+            notifier.start('Restore user profile');
+            const restore = new RestoreDataFromHedera();
+            await restore.restoreRootAuthority(username, profile.hederaAccountId, profile.hederaAccountKey, profile.topicId)
+            notifier.completed();
+            notifier.result('did');
+        }, async (error) => {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            notifier.error(error);
         });
 
-        return new MessageResponse({ taskId });
+        return new MessageResponse(task);
     });
 
-    ApiResponse(channel, MessageAPI.GET_ALL_USER_TOPICS_ASYNC, async (msg) => {
-        const { username, profile, taskId } = msg;
-        const notifier = initNotifier(apiGatewayChannel, taskId);
+    ApiResponse(MessageAPI.GET_ALL_USER_TOPICS_ASYNC, async (msg) => {
+        const { username, profile, task } = msg;
+        const notifier = await initNotifier(task);
 
-        setImmediate(async () => {
-            console.log(username, profile, taskId);
-            try {
-                if (!profile.hederaAccountId) {
-                    notifier.error('Invalid Hedera Account Id');
-                    return;
-                }
-                if (!profile.hederaAccountKey) {
-                    notifier.error('Invalid Hedera Account Key');
-                    return;
-                }
-
-                const restore = new RestoreDataFromHedera();
-                const result = await restore.findAllUserTopics(username, profile.hederaAccountId, profile.hederaAccountKey)
-
-                notifier.result(result);
-            } catch (error) {
-                new Logger().error(error, ['GUARDIAN_SERVICE']);
-                notifier.error(error);
+        RunFunctionAsync(async () => {
+            if (!profile.hederaAccountId) {
+                notifier.error('Invalid Hedera Account Id');
+                return;
             }
+            if (!profile.hederaAccountKey) {
+                notifier.error('Invalid Hedera Account Key');
+                return;
+            }
+
+            notifier.start('Finding all user topics');
+            const restore = new RestoreDataFromHedera();
+            const result = await restore.findAllUserTopics(username, profile.hederaAccountId, profile.hederaAccountKey)
+            notifier.completed();
+            notifier.result(result);
+        }, async (error) => {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            notifier.error(error);
         });
 
-        return new MessageResponse({ taskId });
+        return new MessageResponse(task);
     });
 }
+
+@Module({
+    imports: [
+        ClientsModule.register([{
+            name: 'profile-service',
+            transport: Transport.NATS,
+            options: {
+                servers: [
+                    `nats://${process.env.MQ_ADDRESS}:4222`
+                ],
+                queue: 'profile-service',
+                // serializer: new OutboundResponseIdentitySerializer(),
+                // deserializer: new InboundMessageIdentityDeserializer(),
+            }
+        }]),
+    ],
+    controllers: [
+        ProfileController
+    ]
+})
+export class ProfileModule {}

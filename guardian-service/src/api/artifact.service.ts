@@ -1,38 +1,72 @@
-import { ApiResponse } from '@api/api-response';
-import { MessageBrokerChannel, MessageResponse, MessageError, Logger } from '@guardian/common';
-import { MessageAPI, PolicyType } from '@guardian/interfaces';
-import { DatabaseServer } from '@database-modules';
-import { getArtifactExtention, getArtifactType } from '@helpers/utils';
+import { ApiResponse } from '@api/helpers/api-response';
+import { DatabaseServer, getArtifactExtention, getArtifactType, Logger, MessageError, MessageResponse, } from '@guardian/common';
+import { MessageAPI, ModuleStatus, PolicyType } from '@guardian/interfaces';
+
+export async function getParent(parentId: string) {
+    if (!parentId) {
+        return null;
+    }
+    const policy = await DatabaseServer.getPolicyById(parentId);
+    if (policy) {
+        return {
+            type: 'policy',
+            item: policy
+        }
+    }
+    const tool = await DatabaseServer.getToolById(parentId);
+    if (tool) {
+        return {
+            type: 'tool',
+            item: tool
+        }
+    }
+    return null;
+}
 
 /**
  * Connect to the message broker methods of working with artifacts.
- *
- * @param channel - channel
  */
-export async function artifactAPI(
-    channel: MessageBrokerChannel
-): Promise<void> {
-
+export async function artifactAPI(): Promise<void> {
     /**
-     * Create new token
+     * Upload artifact
      *
-     * @param {IToken} payload - token
+     * @param {any} msg - Artifact parameters
      *
-     * @returns {IToken[]} - all tokens
+     * @returns {Artifact} - Uploaded artifact
      */
-    ApiResponse(channel, MessageAPI.UPLOAD_ARTIFACT, async (msg) => {
+    ApiResponse(MessageAPI.UPLOAD_ARTIFACT, async (msg) => {
         try {
-            if (!msg || !msg.artifact || !msg.policyId || !msg.owner) {
-                throw new Error('Invalid Artifact Parameters');
+            if (!msg || !msg.artifact || !msg.parentId || !msg.owner) {
+                throw new Error('Invalid upload artifact parameters');
             }
+
+            const parentId = msg.parentId;
+            const parent = await getParent(parentId);
+
+            if (!parent) {
+                throw new Error('There is no appropriate entity');
+            }
+
+            const category: string = parent.type;
+            if (parent.type === 'policy') {
+                if (parent.item.status !== PolicyType.DRAFT) {
+                    throw new Error('There is no appropriate policy or policy is not in DRAFT status');
+                }
+            } else if (parent.type === 'tool') {
+                if (parent.item.status === ModuleStatus.PUBLISHED) {
+                    throw new Error('There is no appropriate tool or tool is not in DRAFT status');
+                }
+            }
+
             const extention = getArtifactExtention(msg.artifact.name);
             const type = getArtifactType(extention);
             const artifact = await DatabaseServer.saveArtifact({
                 name: msg.artifact.name.split('.')[0],
                 extention,
                 type,
-                policyId: msg.policyId,
-                owner: msg.owner
+                policyId: msg.parentId,
+                owner: msg.owner,
+                category
             } as any);
             await DatabaseServer.saveArtifactFile(artifact.uuid, Buffer.from(msg.artifact.data));
             return new MessageResponse(artifact);
@@ -42,20 +76,47 @@ export async function artifactAPI(
         }
     });
 
-    ApiResponse(channel, MessageAPI.GET_ARTIFACTS, async (msg) => {
+    /**
+     * Get artifacts
+     *
+     * @param {any} msg - Get artifact parameters
+     *
+     * @returns {any} Artifacts and count
+     */
+    ApiResponse(MessageAPI.GET_ARTIFACTS, async (msg) => {
         try {
             if (!msg) {
-                return new MessageError('Invalid load artifact parameter');
+                return new MessageError('Invalid get artifact parameters');
             }
 
-            const { policyId, pageIndex, pageSize, owner } = msg;
-            const filter: any = {}
+            const {
+                type,
+                id,
+                toolId,
+                policyId,
+                pageIndex,
+                pageSize,
+                owner
+            } = msg;
+            const filter: any = {};
 
-            if (policyId) {
-                filter.policyId = policyId;
-            }
             if (owner) {
                 filter.owner = owner;
+            }
+
+            if (policyId) {
+                filter.category = 'policy';
+                filter.policyId = policyId;
+            } else if (toolId) {
+                filter.category = 'tool';
+                filter.policyId = toolId;
+            } else if (id) {
+                filter.policyId = id;
+            } else if (type) {
+                filter.category = type;
+            }
+            if (filter.category === 'policy') {
+                filter.category = { $in: ['policy', undefined] }
             }
 
             const otherOptions: any = {};
@@ -66,6 +127,7 @@ export async function artifactAPI(
                 otherOptions.limit = _pageSize;
                 otherOptions.offset = _pageIndex * _pageSize;
             } else {
+                otherOptions.orderBy = { createDate: 'DESC' };
                 otherOptions.limit = 100;
             }
 
@@ -81,25 +143,41 @@ export async function artifactAPI(
         }
     });
 
-    ApiResponse(channel, MessageAPI.DELETE_ARTIFACT, async (msg) => {
+    /**
+     * Delete artifact
+     *
+     * @param {any} msg - Delete artifact parameters
+     *
+     * @returns {boolean} - Operation success
+     */
+    ApiResponse(MessageAPI.DELETE_ARTIFACT, async (msg) => {
         try {
-            if (!msg.artifactId || !msg.owner) {
-                return new MessageError('Invalid load schema parameter');
+            if (!msg || !msg.artifactId || !msg.owner) {
+                return new MessageError('Invalid delete artifact parameters');
             }
             const artifactToDelete = await DatabaseServer.getArtifact({
                 id: msg.artifactId,
                 owner: msg.owner
             });
-            if (!artifactToDelete.policyId) {
+            const parentId = artifactToDelete.policyId;
+
+            if (!parentId) {
                 return new MessageResponse(false);
             }
-            const policy = await DatabaseServer.getPolicy({
-                id: artifactToDelete.policyId,
-                owner: msg.owner
-            });
-            if (policy && policy.status !== PolicyType.DRAFT) {
-                throw new Error('There is no appropriate policy or policy is not in DRAFT status');
+
+            const parent = await getParent(parentId);
+            if (parent) {
+                if (parent.type === 'policy') {
+                    if (parent.item.status !== PolicyType.DRAFT) {
+                        throw new Error('There is no appropriate policy or policy is not in DRAFT status');
+                    }
+                } else if (parent.type === 'tool') {
+                    if (parent.item.status === ModuleStatus.PUBLISHED) {
+                        throw new Error('There is no appropriate tool or tool is not in DRAFT status');
+                    }
+                }
             }
+
             await DatabaseServer.removeArtifact(artifactToDelete);
             return new MessageResponse(true);
         } catch (error) {

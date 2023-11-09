@@ -1,0 +1,44 @@
+<div class="g-dialog-content">
+    <div class="g-dialog-header">
+        <div class="g-dialog-cancel">
+            <div class="g-dialog-cancel-btn" (click)="onClose()">
+                <mat-icon>close</mat-icon>
+            </div>
+        </div>
+        <div *ngIf="type === 'policy'" class="g-dialog-title">
+            Compare Policies
+        </div>
+        <div *ngIf="type === 'tool'" class="g-dialog-title">
+            Compare Tools
+        </div>
+        <div class="g-dialog-actions">
+            <div class="g-dialog-actions-btn" (click)="onCompare()" [attr.disabled]="disabled">
+                Compare
+            </div>
+        </div>
+    </div>
+    <div class="g-dialog-body">
+        <div class="context">
+            <div *ngIf="loading" class="loading">
+                <mat-spinner></mat-spinner>
+            </div>
+
+            <mat-form-field appearance="outline" style="width: 100%">
+                <mat-label *ngIf="type === 'policy'">First policy:</mat-label>
+                <mat-label *ngIf="type === 'tool'">First tool:</mat-label>
+                <mat-select [(value)]="itemID_1" (valueChange)="onChange()">
+                    <mat-option>None</mat-option>
+                    <mat-option *ngFor="let row of list1" [value]="row.id">{{row.name}}</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" style="width: 100%">
+                <mat-label *ngIf="type === 'policy'">Secondary policies:</mat-label>
+                <mat-label *ngIf="type === 'tool'">Secondary tools:</mat-label>
+                <mat-select multiple [(value)]="itemID_2" (valueChange)="onChange()">
+                    <mat-option *ngFor="let row of list2" [value]="row.id">{{row.name}}</mat-option>
+                </mat-select>
+            </mat-form-field>
+        </div>
+    </div>
+</div>

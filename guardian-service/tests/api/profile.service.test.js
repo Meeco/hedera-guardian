@@ -12,6 +12,7 @@ moduleAlias.addAliases({
   "@policy-engine": process.cwd() + '/dist' +  "/policy-engine",
   "@hedera-modules": process.cwd() + '/dist' +  "/hedera-modules/index",
   "@document-loader": process.cwd() + '/dist' +  "/document-loader",
+  "@analytics": process.cwd() + '/dist' +  "/analytics",
   "@database-modules": process.cwd() + '/dist' + "/database-modules"
 });
 const { expect, assert } = require('chai');
@@ -154,16 +155,13 @@ const channel = {
     }
 }
 
-profileAPIModule.__set__('users_1', {
+profileAPIModule.__set__('common_1', {
     Users: MockUsers,
-});
-profileAPIModule.__set__('wallet_1', {
     Wallet: MockWallet,
     KeyType: {
         KEY: 'key'
-    }
-});
-profileAPIModule.__set__('_hedera_modules_1', {
+    },
+    Logger: MockLogger,
     HederaSDKHelper: MockHederaSDKHelper,
     DIDDocument: MockDIDDocument,
     DIDMessage: MockDIDMessage,
@@ -171,9 +169,6 @@ profileAPIModule.__set__('_hedera_modules_1', {
     MessageAction: {
         CreateDID: 'CreateDID'
     }
-});
-profileAPIModule.__set__('common_1', {
-    Logger: MockLogger
 });
 
 describe('Profile Service API', function () {

@@ -4,11 +4,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconRegistry } from '@angular/material/icon';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IVC, Schema, SchemaHelper } from '@guardian/interfaces';
-import { AuditService } from 'src/app/services/audit.service';
+import { IVC } from '@guardian/interfaces';
+import { AuditService } from '../../services/audit.service';
 import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
-import { VCViewerDialog } from 'src/app/schema-engine/vc-dialog/vc-dialog.component';
+import { VCViewerDialog } from '../../modules/schema-engine/vc-dialog/vc-dialog.component';
 
 /**
  * Page to find VP Documents and display Trust Chain.
@@ -129,9 +129,9 @@ export class TrustChainComponent implements OnInit {
                 }
 
                 this.loading = false;
-            }, (error) => {
+            }, ({ message }) => {
                 this.loading = false;
-                console.error(error);
+                console.error(message);
             });
         } else {
             this.loading = false;
@@ -142,7 +142,11 @@ export class TrustChainComponent implements OnInit {
     openVCDocument(item: any) {
         const dialogRef = this.dialog.open(VCViewerDialog, {
             width: '850px',
+            panelClass: 'g-dialog',
+            disableClose: true,
             data: {
+                id: item.id,
+                dryRun: !!item.dryRunId,
                 viewDocument: true,
                 document: item.document,
                 title: item.type,
@@ -155,7 +159,11 @@ export class TrustChainComponent implements OnInit {
     openVPDocument(item: any) {
         const dialogRef = this.dialog.open(VCViewerDialog, {
             width: '850px',
+            panelClass: 'g-dialog',
+            disableClose: true,
             data: {
+                id: item.id,
+                dryRun: !!item.dryRunId,
                 viewDocument: true,
                 document: item.document,
                 title: item.type,
@@ -168,7 +176,11 @@ export class TrustChainComponent implements OnInit {
     openJsonDocument(item: any) {
         const dialogRef = this.dialog.open(VCViewerDialog, {
             width: '850px',
+            panelClass: 'g-dialog',
+            disableClose: true,
             data: {
+                id: item.id,
+                dryRun: !!item.dryRunId,
                 document: item.document,
                 title: item.type,
                 type: 'JSON',

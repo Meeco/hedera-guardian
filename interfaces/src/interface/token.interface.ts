@@ -64,6 +64,21 @@ export interface IToken {
      * Owner
      */
     policyId?: string;
+
+    /**
+     * Is token draft
+     */
+    draftToken?: boolean;
+
+    /**
+     * Can delete
+     */
+    canDelete?: boolean;
+
+    /**
+     * Wipe contract identifier
+     */
+    wipeContractId?: string;
 }
 
 /**

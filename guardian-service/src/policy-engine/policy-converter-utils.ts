@@ -1,5 +1,5 @@
-import { Policy } from '@entity/policy';
-import { UserType } from '@guardian/interfaces';
+import { Policy } from '@guardian/common';
+import { BlockType, GenerateUUIDv4, UserType } from '@guardian/interfaces';
 import { EventConfig, PolicyInputEventType, PolicyOutputEventType, EventActor } from './interfaces';
 
 /**
@@ -9,7 +9,7 @@ export class PolicyConverterUtils {
     /**
      * Base version
      */
-    public static readonly VERSION = '1.4.0';
+    public static readonly VERSION = '1.5.1';
 
     /**
      * Policy converter
@@ -20,8 +20,8 @@ export class PolicyConverterUtils {
         if (policy.codeVersion === PolicyConverterUtils.VERSION) {
             return policy;
         }
-
-        policy.config = PolicyConverterUtils.BlockConverter(policy.config, policy.codeVersion);
+        const root = policy.config;
+        policy.config = PolicyConverterUtils.BlockConverter(root, root, policy.codeVersion);
         policy.codeVersion = PolicyConverterUtils.VERSION;
         return policy;
     }
@@ -68,6 +68,7 @@ export class PolicyConverterUtils {
      * @private
      */
     private static BlockConverter(
+        root: any,
         block: any,
         policyVersion: string,
         parent?: any,
@@ -87,10 +88,16 @@ export class PolicyConverterUtils {
         if (PolicyConverterUtils.versionCompare('1.3.0', policyVersion) > 0) {
             block = PolicyConverterUtils.v1_3_0(block, parent, index, next, prev);
         }
+        if (PolicyConverterUtils.versionCompare('1.5.0', policyVersion) > 0) {
+            block = PolicyConverterUtils.v1_5_0(block, parent, index, next, prev);
+        }
+        if (PolicyConverterUtils.versionCompare('1.5.1', policyVersion) > 0) {
+            block = PolicyConverterUtils.v1_5_1(root, block, parent, index, next, prev);
+        }
         if (block.children && block.children.length) {
             for (let i = 0; i < block.children.length; i++) {
                 block.children[i] = PolicyConverterUtils.BlockConverter(
-                    block.children[i], policyVersion, block, i, block.children[i + 1], block.children[i - 1]
+                    root, block.children[i], policyVersion, block, i, block.children[i + 1], block.children[i - 1]
                 );
             }
         }
@@ -310,6 +317,97 @@ export class PolicyConverterUtils {
         if (block.blockType === 'retirementDocumentBlock') {
             block.accountType = block.accountType || 'default';
         }
+        return block;
+    }
+
+    /**
+     * Create 1.5.0 version
+     * @param block
+     * @param parent
+     * @param index
+     * @param next
+     * @param prev
+     * @private
+     */
+    private static v1_5_0(
+        block: any,
+        parent?: any,
+        index?: any,
+        next?: any,
+        prev?: any
+    ): any {
+        if (block.blockType !== 'interfaceDocumentsSourceBlock') {
+            return block;
+        }
+        const sourceAddons =
+            block.children?.filter(
+                (child) => child.blockType === 'documentsSourceAddon'
+            ) || [];
+        const viewHistory = !!sourceAddons.find((addon) => addon.viewHistory);
+        if (viewHistory) {
+            const newBlockUUID = GenerateUUIDv4();
+            block.children.push({
+                id: newBlockUUID,
+                tag: 'history_addon_' + newBlockUUID,
+                blockType: 'historyAddon',
+                defaultActive: false,
+                permissions: ['ANY_ROLE'],
+                onErrorAction: 'no-action',
+                artifacts: [],
+                children: [],
+                events: [],
+            });
+        }
+        for (const addon of sourceAddons) {
+            delete addon.viewHistory;
+        }
+        return block;
+    }
+
+    /**
+     * Create 1.5.1 version
+     * @param block
+     * @param parent
+     * @param index
+     * @param next
+     * @param prev
+     * @private
+     */
+    private static v1_5_1(
+        root: any,
+        block: any,
+        parent?: any,
+        index?: any,
+        next?: any,
+        prev?: any
+    ): any {
+        if (block.blockType !== 'revokeBlock') {
+            return block;
+        }
+        const clearOldRevokeColumns = (rootBlock: any, tag: string) => {
+            const stack = [rootBlock];
+            while (stack.length > 0) {
+                const currentBlock = stack.pop();
+                if (
+                    currentBlock?.blockType ===
+                        BlockType.DocumentsViewer &&
+                    Array.isArray(currentBlock.uiMetaData?.fields)
+                ) {
+                    currentBlock.uiMetaData.fields =
+                        currentBlock.uiMetaData.fields.filter(
+                            (field) => field.bindBlock !== tag
+                        );
+                }
+                if (Array.isArray(currentBlock?.children)) {
+                    stack.push(...currentBlock.children);
+                }
+            }
+        };
+        clearOldRevokeColumns(root, block.tag);
+        block.blockType = BlockType.RevocationBlock;
+        block.updatePrevDoc = block.uiMetaData.updatePrevDoc;
+        block.prevDocStatus = block.uiMetaData.prevDocStatus;
+        delete block.uiMetaData;
         return block;
     }
 }

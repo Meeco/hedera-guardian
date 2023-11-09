@@ -1,88 +1,84 @@
-import {
-    accountAPI,
-    trustchainsAPI,
-    demoAPI,
-    profileAPI,
-    schemaAPI,
-    tokenAPI,
-    externalAPI,
-    ipfsAPI
-} from '@api/service';
 import { Guardians } from '@helpers/guardians';
-import express from 'express';
-import { createServer } from 'http';
-import { authorizationHelper } from '@auth/authorization-helper';
 import { IPFS } from '@helpers/ipfs';
-import { policyAPI } from '@api/service/policy';
 import { PolicyEngine } from '@helpers/policy-engine';
 import { WebSocketsService } from '@api/service/websockets';
 import { Users } from '@helpers/users';
 import { Wallet } from '@helpers/wallet';
-import { settingsAPI } from '@api/service/settings';
-import { loggerAPI } from '@api/service/logger';
-import { MessageBrokerChannel, Logger } from '@guardian/common';
-import { taskAPI } from '@api/service/task';
+import { LargePayloadContainer, Logger, MessageBrokerChannel } from '@guardian/common';
 import { TaskManager } from '@helpers/task-manager';
-import { singleSchemaRoute } from '@api/service/schema';
-import { artifactAPI } from '@api/service/artifact';
-import fileupload from 'express-fileupload';
-import { contractAPI } from '@api/service/contract';
+import { AppModule } from './app.module';
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import process from 'process';
+import { HttpStatus, ValidationPipe } from '@nestjs/common';
+import { json } from 'express';
+import { SwaggerModule } from '@nestjs/swagger';
+import { SwaggerConfig } from '@helpers/swagger-config';
+import { SwaggerModels, SwaggerPaths } from './old-descriptions';
+import { MeecoAuth } from '@helpers/meeco';
 
 const PORT = process.env.PORT || 3002;
-const RAW_REQUEST_LIMIT = process.env.RAW_REQUEST_LIMIT || '1gb';
+
+// const restResponseTimeHistogram = new client.Histogram({
+//     name: 'api_gateway_rest_response_time_duration_seconds',
+//     help: 'api-gateway a histogram metric',
+//     labelNames: ['method', 'route', 'statusCode'],
+//     buckets: [0.1, 5, 15, 50, 100, 500],
+// });
 
 Promise.all([
+    NestFactory.create(AppModule, {
+        rawBody: true,
+        bodyParser: false
+    }),
     MessageBrokerChannel.connect('API_GATEWAY'),
-]).then(async ([cn]) => {
+]).then(async ([app, cn]) => {
     try {
-        const app = express();
-        app.use(express.json());
-        app.use(express.raw({
-            inflate: true,
-            limit: RAW_REQUEST_LIMIT,
-            type: 'binary/octet-stream'
+        app.connectMicroservice<MicroserviceOptions>({
+            transport: Transport.NATS,
+            options: {
+                name: `${process.env.SERVICE_CHANNEL}`,
+                servers: [
+                    `nats://${process.env.MQ_ADDRESS}:4222`
+                ]
+            },
+        });
+        app.useGlobalPipes(new ValidationPipe({
+            errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY
         }));
-        app.use(fileupload());
-        const channel = new MessageBrokerChannel(cn, 'guardian');
-        const apiGatewayChannel = new MessageBrokerChannel(cn, 'api-gateway');
-        new Logger().setChannel(channel);
-        new Guardians().setChannel(channel);
-        new IPFS().setChannel(channel);
-        new PolicyEngine().setChannel(channel);
-        new Users().setChannel(channel);
-        new Wallet().setChannel(channel);
 
-        const server = createServer(app);
-        const wsService = new WebSocketsService(server, apiGatewayChannel);
+        app.use(json({ limit: '2mb' }));
+
+        new Logger().setConnection(cn);
+        await new Guardians().setConnection(cn).init();
+        await new IPFS().setConnection(cn).init();
+        await new PolicyEngine().setConnection(cn).init();
+        await new Users().setConnection(cn).init();
+        await new Wallet().setConnection(cn).init();
+
+        await new MeecoAuth().setConnection(cn).init();
+        await new MeecoAuth().registerListeners();
+
+        const server = app.getHttpServer();
+        const wsService = new WebSocketsService(server, cn);
         wsService.init();
 
-        new TaskManager().setDependecies(wsService, apiGatewayChannel);
+        new TaskManager().setDependecies(wsService, cn);
 
-        ////////////////////////////////////////
+        const document = SwaggerModule.createDocument(app, SwaggerConfig);
+        Object.assign(document.paths, SwaggerPaths)
+        Object.assign(document.components.schemas, SwaggerModels.schemas);
+        SwaggerModule.setup('api-docs', app, document);
 
-        // Config routes
-        app.use('/policies', authorizationHelper, policyAPI);
-        app.use('/accounts/', accountAPI);
-        app.use('/profiles/', authorizationHelper, profileAPI);
-        app.use('/settings/', authorizationHelper, settingsAPI);
-        app.use('/schema', authorizationHelper, singleSchemaRoute);
-        app.use('/schemas', authorizationHelper, schemaAPI);
-        app.use('/tokens', authorizationHelper, tokenAPI);
-        app.use('/artifact', authorizationHelper, artifactAPI);
-        app.use('/trustchains/', authorizationHelper, trustchainsAPI);
-        app.use('/external/', externalAPI);
-        app.use('/demo/', demoAPI);
-        app.use('/ipfs', authorizationHelper, ipfsAPI);
-        app.use('/logs', authorizationHelper, loggerAPI);
-        app.use('/tasks/', taskAPI);
-        app.use('/contracts', authorizationHelper, contractAPI);
-        /////////////////////////////////////////
-
-        server.listen(PORT, () => {
+        const maxPayload = parseInt(process.env.MQ_MAX_PAYLOAD, 10);
+        if (Number.isInteger(maxPayload)) {
+            new LargePayloadContainer().runServer();
+        }
+        app.listen(PORT, async () => {
             new Logger().info(`Started on ${PORT}`, ['API_GATEWAY']);
         });
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         process.exit(1);
     }
 }, (reason) => {

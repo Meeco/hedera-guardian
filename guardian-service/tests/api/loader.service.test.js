@@ -9,17 +9,13 @@ moduleAlias.addAliases({
   "@subscribers": process.cwd() + '/dist' + "dist/subscribers",
   "@helpers": process.cwd() + '/dist' + "/helpers",
   "@auth": process.cwd() + '/dist' +  "/auth",
+  "@analytics": process.cwd() + '/dist' +  "/analytics",
   "@policy-engine": process.cwd() + '/dist' +  "/policy-engine",
-  "@hedera-modules": process.cwd() + '/dist' +  "/hedera-modules/index",
-  "@document-loader": process.cwd() + '/dist' +  "/document-loader",
-  "@database-modules": process.cwd() + '/dist' + "/database-modules"
 });
 const { expect, assert } = require('chai');
 const rewire = require("rewire");
 
 const { ApplicationState } = require("@guardian/common");
-const { DidDocument } = require("../../dist/entity/did-document");
-const { Schema } = require("../../dist/entity/schema");
 const state = new ApplicationState();
 state.updateState('READY');
 
@@ -46,10 +42,7 @@ class MockLogger {
 }
 
 loaderAPIModule.__set__('common_1', {
-    Logger: MockLogger
-});
-
-loaderAPIModule.__set__('_hedera_modules_1', {
+    Logger: MockLogger,
     DidRootKey: {
         create: function () {
             return {

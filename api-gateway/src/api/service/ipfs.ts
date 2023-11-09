@@ -1,53 +1,67 @@
-import { Response, Router } from 'express';
-import { AuthenticatedRequest, Logger } from '@guardian/common';
+import { Logger } from '@guardian/common';
 import { Guardians } from '@helpers/guardians';
+import { Controller, Get, HttpCode, HttpException, HttpStatus, Post, Req, Response } from '@nestjs/common';
+import { ApiOperation, ApiSecurity, ApiTags } from '@nestjs/swagger';
 
-/**
- * IPFS route
- */
-export const ipfsAPI = Router();
-
-ipfsAPI.post('/file', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        if (!req.body) {
-            throw new Error('Body content in request is empty');
+@Controller('ipfs')
+@ApiTags('ipfs')
+export class IpfsApi {
+    @ApiOperation({
+        summary: 'Add file from ipfs.',
+        description: 'Add file from ipfs.',
+    })
+    @ApiSecurity('bearerAuth')
+    @Post('/file')
+    @HttpCode(HttpStatus.CREATED)
+    async postFile(@Req() req, @Response() res): Promise<any> {
+        if (!req.user) {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
         }
+        try {
+            if (!Object.values(req.body).length) {
+                throw new HttpException('Body content in request is empty', HttpStatus.UNPROCESSABLE_ENTITY)
+            }
 
-        const guardians = new Guardians();
-        const { cid } = await guardians.addFileIpfs(req.body);
-        if (!cid) {
-            throw new Error('File is not uploaded');
+            const guardians = new Guardians();
+            const {cid} = await guardians.addFileIpfs(req.body);
+            if (!cid) {
+                throw new HttpException('File is not uploaded', HttpStatus.BAD_REQUEST)
+                // return next(createError(400, 'File is not uploaded'));
+            }
+
+            return res.status(201).json(cid);
+        } catch (error) {
+            new Logger().error(error, ['API_GATEWAY']);
+            throw error;
         }
-
-        res.status(201).json(cid);
-    } catch (error) {
-        new Logger().error(error, ['API_GATEWAY']);
-        res.status(500).json({ code: 500, message: error.message });
     }
-});
 
-ipfsAPI.get('/file/:cid', async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        if (!req.body) {
-            throw new Error('Body content in request is empty');
+    @ApiOperation({
+        summary: 'Get file from ipfs.',
+        description: 'Get file from ipfs.',
+    })
+    @ApiSecurity('bearerAuth')
+    @Get('/file/:cid')
+    @HttpCode(HttpStatus.OK)
+    async getFile(@Req() req, @Response() res): Promise<any> {
+        if (!req.user) {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
         }
-        if (!req.params.cid) {
-            throw new Error('Invalid file CID');
+        try {
+            const guardians = new Guardians();
+            const result = await guardians.getFileIpfs(req.params.cid, 'raw');
+            if (result.type !== 'Buffer') {
+                throw new HttpException('File is not found', HttpStatus.NOT_FOUND)
+            }
+            const resultBuffer = Buffer.from(result);
+            res.writeHead(200, {
+                'Content-Type': 'binary/octet-stream',
+                'Content-Length': resultBuffer.length,
+            });
+            return res.end(resultBuffer, 'binary');
+        } catch (error) {
+            new Logger().error(error, ['API_GATEWAY']);
+            throw error;
         }
-
-        const guardians = new Guardians();
-        const result = await guardians.getFileIpfs(req.params.cid, 'raw');
-        const resultBuffer = Buffer.from(result);
-        if (!result) {
-            throw new Error('File is not uploaded');
-        }
-        res.writeHead(200, {
-            'Content-Type': 'binary/octet-stream',
-            'Content-Length': resultBuffer.length,
-        });
-        res.end(resultBuffer, 'binary');
-    } catch (error) {
-        new Logger().error(error, ['API_GATEWAY']);
-        res.status(500).json({ code: 500, message: error.message });
     }
-});
+}

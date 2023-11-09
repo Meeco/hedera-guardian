@@ -4,16 +4,14 @@ This block provides a way to specify multiple signators for a single VC document
 
 ### 1. Properties
 
-| Block Property   | Definition                                                                                                                                                     | Example Input                                                                         | Status |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------ |
-| tag              | Unique name for the logic block.                                                                                                                               | multiSignBlock                                                                        |        |
-| permissions      | Which entity has rights to interact at this part of the workflow.                                                                                              | NoRole                                                                                |        |
-| defaultActive    | Shows whether this block is active at this time and whether it needs to be shown.                                                                              | Checked or unchecked.                                                                 |        |
-| On errors        | Called if the system error has occurs in the Block                                                                                                             | <p></p><ul><li>No action</li><li>Retry</li><li>Go to step</li><li>Go to tag</li></ul> |        |
-| Stop Propagation | End processing here, don't pass control to the next block.                                                                                                     | Checked or unchecked.                                                                 |        |
-| Threshold (%)    | Proportion Of signators which are required to sign the document to achieve quorum for it to transition to ‘signed’ status. Must be a number between 0 and 100. | 0-100                                                                                 |        |
-
-
+| Block Property   | Definition                                                                                                                                                     | Example Input                                                                  | Status |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------ |
+| tag              | Unique name for the logic block.                                                                                                                               | multiSignBlock                                                                 |        |
+| permissions      | Which entity has rights to interact at this part of the workflow.                                                                                              | NoRole                                                                         |        |
+| defaultActive    | Shows whether this block is active at this time and whether it needs to be shown.                                                                              | Checked or unchecked.                                                          |        |
+| On errors        | Called if the system error has occurs in the Block                                                                                                             | <ul><li>No action</li><li>Retry</li><li>Go to step</li><li>Go to tag</li></ul> |        |
+| Stop Propagation | End processing here, don't pass control to the next block.                                                                                                     | Checked or unchecked.                                                          |        |
+| Threshold (%)    | Proportion Of signators which are required to sign the document to achieve quorum for it to transition to ‘signed’ status. Must be a number between 0 and 100. | 0-100                                                                          |        |
 
 {% hint style="info" %}
 **Note:** The system assigns ‘not signed’ status to the document when 100 – threshold percentage of users indicated rejection status.
@@ -28,7 +26,7 @@ This block provides a way to specify multiple signators for a single VC document
 
 ### 3. Data Format
 
-#### 3.1 POST request&#x20;
+#### 3.1 POST request
 
 ```
 {
@@ -80,11 +78,11 @@ This block provides a way to specify multiple signators for a single VC document
 
 4.1.1 multiSignBlock must be used with Groups.
 
-<figure><img src="../.gitbook/assets/image (13) (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (13) (1) (1) (2).png" alt=""><figcaption></figcaption></figure>
 
 4.1.2 multiSignBlock must be child block of grid block to receive all data it requires to operate.
 
-<figure><img src="../.gitbook/assets/image (31).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (31) (1) (2).png" alt=""><figcaption></figcaption></figure>
 
 ### 5. UI
 
@@ -92,13 +90,13 @@ This block provides a way to specify multiple signators for a single VC document
 
 We have an option of Signing/ Declining the document by clicking on "Sign" or "Decline" button for the document as shown below:
 
-<figure><img src="../.gitbook/assets/image (20) (2).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (21) (2).png" alt=""><figcaption></figcaption></figure>
 
 #### 5.2 Threshold Display
 
 Number of users, who have signed or declined the document can be displayed with threshold as shown below:
 
-<figure><img src="../.gitbook/assets/image (29).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (29) (3).png" alt=""><figcaption></figcaption></figure>
 
 #### 5.3 Detailed Signature Information
 
@@ -111,3 +109,51 @@ To get detailed information on Signature status, we have an info icon near the t
 To get the final Signature Result with detailed information such as which users have Signed / Declined, we need to hover on the Status as shown below:
 
 <figure><img src="../.gitbook/assets/image (1) (3) (2).png" alt=""><figcaption></figcaption></figure>
+
+### API Parameters
+
+{% swagger method="get" path="" baseUrl="/policies/{policyId}/blocks/{uuid}" summary="" %}
+{% swagger-description %}
+
+{% endswagger-description %}
+
+{% swagger-parameter in="path" name="policyId" type="String" required="true" %}
+Policy ID
+{% endswagger-parameter %}
+
+{% swagger-parameter in="path" name="uuid" type="String" required="true" %}
+Block UUID
+{% endswagger-parameter %}
+
+{% swagger-response status="200: OK" description="Successful Operation" %}
+```javascript
+{
+  "id": "1c922d1a-7f9d-492f-b0f9-f319eb2b66be",
+  "blockType": "multiSignBlock"
+}
+
+```
+{% endswagger-response %}
+{% endswagger %}
+
+{% swagger method="post" path="" baseUrl="/policies/{policyId}/blocks/{uuid}" summary="" %}
+{% swagger-description %}
+
+{% endswagger-description %}
+
+{% swagger-parameter in="path" name="policyId" type="String" required="true" %}
+Policy ID
+{% endswagger-parameter %}
+
+{% swagger-parameter in="path" name="uuid" type="String" required="true" %}
+Block UUID
+{% endswagger-parameter %}
+
+{% swagger-parameter in="body" name="status" type="String" required="true" %}
+Signed/Declined
+{% endswagger-parameter %}
+
+{% swagger-parameter in="body" name="document" type="Object" required="true" %}
+VC Document
+{% endswagger-parameter %}
+{% endswagger %}

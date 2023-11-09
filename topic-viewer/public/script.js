@@ -100,9 +100,9 @@ async function getTopicMessage(topicId, index) {
     }
 }
 
-async function getIPFS(url) {
+async function getIPFS(cid) {
     try {
-        const result = await fetch(url);
+        const result = await fetch(`https://ipfs.io/ipfs/${cid}`);
         if (result.status === 200) {
             return await result.json();
         } else {
@@ -256,8 +256,8 @@ function renderMessage(container, id, message, topicId) {
             messageIPFSDiv.className === "message-ipfs" ? "message-ipfs max" : "message-ipfs";
     });
 
-    if (message.url) {
-        getIPFS(message.url).then((data) => {
+    if (message.cid) {
+        getIPFS(message.cid).then((data) => {
             messageIPFSDiv.innerHTML = JSON.stringify(data, null, 4);
             topicMessageDiv.append(messageIPFSDiv);
         });
@@ -311,7 +311,7 @@ function setValueType(value, type) {
 
 function isValid(value, type) {
     if (type == 'topic') {
-        return !!(value && (/^\d\.\d\.\d\d\d\d\d\d\d\d$/).test(value));
+        return !!(value && (/^\d\.\d\.\d[\d]*$/).test(value));
     } else if (type == 'message') {
         return !!(value && (/^\d\d\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d\d\d\d$/).test(value));
     }
@@ -319,7 +319,7 @@ function isValid(value, type) {
 }
 
 function checkType(value, type) {
-    if ((value && (/^\d\.\d\.\d\d\d\d\d\d\d\d$/).test(value))) {
+    if ((value && (/^\d\.\d\.\d[\d]*$/).test(value))) {
         return 'topic';
     }
     if ((value && (/^\d\d\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d\d\d\d$/).test(value))) {

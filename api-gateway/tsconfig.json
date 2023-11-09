@@ -19,14 +19,17 @@
       "@api/*": [
         "api/*"
       ],
-      "@entity/*": [
-        "entity/*"
+      "@entities/*": [
+        "entities/*"
       ],
       "@helpers/*": [
         "helpers/*"
       ],
       "@auth/*": [
         "auth/*"
+      ],
+      "@middlewares/*": [
+        "middlewares/*"
       ]
     },
     "target": "es6"

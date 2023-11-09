@@ -5,13 +5,18 @@
   "workspaces": [
     "interfaces",
     "common",
-    "api-docs",
     "api-gateway",
     "auth-service",
     "guardian-service",
     "logger-service",
     "mrv-sender",
-    "worker-service"
+    "topic-viewer",
+    "tree-viewer",
+    "analytics-service",
+    "worker-service",
+    "policy-service",
+    "api-tests",
+    "notification-service"
   ],
-  "version": "2.8.0"
+    "version": "2.18.0"
 }

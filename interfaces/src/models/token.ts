@@ -5,6 +5,10 @@ import { IToken, ITokenInfo } from '..';
  */
 export class Token {
     /**
+     * ID
+     */
+    public id: string;
+    /**
      * Token ID
      */
     public tokenId: string;
@@ -72,12 +76,29 @@ export class Token {
      * Initial supply
      */
     public initialSupply?: any;
+
+    /**
+     * Is token draft
+     */
+    public draftToken: boolean;
+
+    /**
+     * Can delete
+     */
+    public canDelete: boolean;
+
+    /**
+     * Wipe contract identifier
+     */
+    public wipeContractId: string;
+
     /**
      * Token constructor
      * @param data
      * @constructor
      */
     constructor(data: ITokenInfo | IToken) {
+        this.id = data.id;
         this.tokenId = data.tokenId;
         this.tokenName = data.tokenName;
         this.tokenSymbol = data.tokenSymbol;
@@ -92,6 +113,8 @@ export class Token {
         this.associated = (data as ITokenInfo).associated ? 'Yes' : 'No';
         this.tokenBalance = (data as ITokenInfo).balance || 'n/a';
         this.hBarBalance = (data as ITokenInfo).hBarBalance || 'n/a';
+        this.draftToken = data.draftToken;
+        this.canDelete = data.canDelete;
         if ((data as ITokenInfo).associated) {
             this.frozen = (data as ITokenInfo).frozen ? 'Yes' : 'No';
             this.kyc = (data as ITokenInfo).kyc ? 'Yes' : 'No';
@@ -100,5 +123,6 @@ export class Token {
             this.kyc = 'n/a';
         }
         this.url = btoa(this.tokenId);
+        this.wipeContractId = data.wipeContractId;
     }
 }

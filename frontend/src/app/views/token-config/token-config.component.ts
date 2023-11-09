@@ -3,17 +3,19 @@ import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../services/auth.service';
 import { ProfileService } from "../../services/profile.service";
 import { TokenService } from '../../services/token.service';
-import { TokenDialog } from '../../components/token-dialog/token-dialog.component';
+import { TokenDialog } from '../../modules/common/token-dialog/token-dialog.component';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Token } from '@guardian/interfaces';
+import { ContractType, SchemaHelper, TagType, Token } from '@guardian/interfaces';
 import { InformService } from 'src/app/services/inform.service';
 import { TasksService } from 'src/app/services/tasks.service';
 import { forkJoin } from 'rxjs';
 import { PolicyEngineService } from 'src/app/services/policy-engine.service';
-import { ConfirmationDialogComponent } from 'src/app/components/confirmation-dialog/confirmation-dialog.component';
+import { ConfirmationDialogComponent } from 'src/app/modules/common/confirmation-dialog/confirmation-dialog.component';
+import { TagsService } from 'src/app/services/tag.service';
+import { ContractService } from 'src/app/services/contract.service';
 
 enum OperationMode {
-    None, Create, Kyc, Freeze
+    None, Kyc, Freeze
 }
 
 /**
@@ -31,6 +33,7 @@ export class TokenConfigComponent implements OnInit {
         'tokenName',
         'tokenSymbol',
         'policies',
+        'tags',
         'users',
         'edit',
         'delete'
@@ -45,7 +48,7 @@ export class TokenConfigComponent implements OnInit {
         'tokenBalance',
         'frozen',
         'kyc',
-        'refresh',
+        'refresh'
     ];
 
     taskId: string | undefined = undefined;
@@ -54,14 +57,23 @@ export class TokenConfigComponent implements OnInit {
     user: any;
     currentPolicy: any = '';
     policies: any[] | null = null;
+    tagEntity = TagType.Token;
+    owner: any;
+    tagSchemas: any[] = [];
+    contracts: any[] = [];
+
+    public innerWidth: any;
+    public innerHeight: any;
 
     constructor(
+        public tagsService: TagsService,
         private auth: AuthService,
         private profileService: ProfileService,
         private tokenService: TokenService,
         private informService: InformService,
         private taskService: TasksService,
         private policyEngineService: PolicyEngineService,
+        private contractService: ContractService,
         private route: ActivatedRoute,
         private router: Router,
         public dialog: MatDialog) {
@@ -69,6 +81,8 @@ export class TokenConfigComponent implements OnInit {
     }
 
     ngOnInit() {
+        this.innerWidth = window.innerWidth;
+        this.innerHeight = window.innerHeight;
         this.tokenId = "";
         this.loading = true;
         this.currentPolicy = this.route.snapshot.queryParams['policy'];
@@ -91,9 +105,32 @@ export class TokenConfigComponent implements OnInit {
     }
 
     loadTokens() {
-        this.tokenService.getTokens(this.currentPolicy).subscribe((data: any) => {
+        forkJoin([
+            this.tokenService.getTokens(this.currentPolicy),
+            this.tagsService.getPublishedSchemas(),
+            this.contractService.getContracts({
+                type: ContractType.WIPE
+            })
+        ]).subscribe((value) => {
+            const data: any = value[0];
+            const tagSchemas: any[] = value[1] || [];
+
+            this.contracts = value[2] && value[2].body || [];
             this.tokens = data.map((e: any) => new Token(e));
-            this.loading = false;
+            this.tagSchemas = SchemaHelper.map(tagSchemas);
+
+            const ids = this.tokens.map(e => e.id);
+            this.tagsService.search(this.tagEntity, ids).subscribe((data) => {
+                for (const token of this.tokens) {
+                    (token as any)._tags = data[token.id];
+                }
+                setTimeout(() => {
+                    this.loading = false;
+                }, 500);
+            }, (e) => {
+                console.error(e.error);
+                this.loading = false;
+            });
         }, (e) => {
             console.error(e.error);
             this.loading = false;
@@ -132,33 +169,60 @@ export class TokenConfigComponent implements OnInit {
             const profile = value[0];
             const policies = value[1] || [];
             this.isConfirmed = !!(profile && profile.confirmed);
+            this.owner = profile?.did;
             this.policies = policies;
             if (this.isConfirmed) {
                 this.queryChange();
             } else {
                 this.loading = false;
             }
-        }, (error) => {
+        }, ({ message }) => {
             this.loading = false;
-            console.error(error);
+            console.error(message);
         });
     }
 
     newToken() {
-        const dialogRef = this.dialog.open(TokenDialog, {
-            width: '750px',
-            panelClass: 'g-dialog',
-            disableClose: true
-        });
+
+        let dialogRef;
+        if (this.innerWidth <= 810) {
+            const bodyStyles = window.getComputedStyle(document.body);
+            const headerHeight: number = parseInt(bodyStyles.getPropertyValue('--header-height'));
+            dialogRef = this.dialog.open(TokenDialog, {
+                width: `${this.innerWidth.toString()}px`,
+                maxWidth: '100vw',
+                height: `${this.innerHeight - headerHeight}px`,
+                position: {
+                    'bottom': '0'
+                },
+                panelClass: 'g-dialog',
+                hasBackdrop: true, // Shadows beyond the dialog
+                closeOnNavigation: true,
+                autoFocus: false,
+                disableClose: true,
+                data: this
+            });
+        } else {
+            dialogRef = this.dialog.open(TokenDialog, {
+                width: '750px',
+                panelClass: 'g-dialog',
+                disableClose: true,
+                data: {
+                    contracts: this.contracts
+                }
+            });
+        }
 
         dialogRef.afterClosed().subscribe(async (result) => {
             if (result) {
                 this.loading = true;
                 this.tokenService.pushCreate(result).subscribe((result) => {
                     const { taskId, expectation } = result;
-                    this.taskId = taskId;
-                    this.expectedTaskMessages = expectation;
-                    this.operationMode = OperationMode.Create;
+                    this.router.navigate(['task', taskId], {
+                        queryParams: {
+                            last: btoa(location.href)
+                        }
+                    });
                 }, (e) => {
                     console.error(e.error);
                     this.loading = false;
@@ -180,9 +244,6 @@ export class TokenConfigComponent implements OnInit {
             this.taskId = undefined;
             this.operationMode = OperationMode.None;
             switch (operationMode) {
-                case OperationMode.Create:
-                    this.loadTokens();
-                    break;
                 case OperationMode.Kyc:
                     this.taskService.get(taskId).subscribe((task) => {
                         this.loading = false;
@@ -300,6 +361,7 @@ export class TokenConfigComponent implements OnInit {
                 dialogTitle: 'Delete token',
                 dialogText: 'Are you sure to delete token?'
             },
+            disableClose: true,
             autoFocus: false
         });
         dialogRef.afterClosed().subscribe((result) => {
@@ -307,9 +369,11 @@ export class TokenConfigComponent implements OnInit {
                 this.loading = true;
                 this.tokenService.pushDelete(element.tokenId).subscribe((result) => {
                     const { taskId, expectation } = result;
-                    this.taskId = taskId;
-                    this.expectedTaskMessages = expectation;
-                    this.operationMode = OperationMode.Create;
+                    this.router.navigate(['task', taskId], {
+                        queryParams: {
+                            last: btoa(location.href)
+                        }
+                    });
                 }, (e) => {
                     console.error(e.error);
                     this.loading = false;
@@ -319,14 +383,39 @@ export class TokenConfigComponent implements OnInit {
     }
 
     editToken(element: any) {
-        const dialogRef = this.dialog.open(TokenDialog, {
-            width: '750px',
-            panelClass: 'g-dialog',
-            disableClose: true,
-            data: {
-                token: element
-            }
-        });
+
+        let dialogRef;
+        if (this.innerWidth <= 810) {
+            const bodyStyles = window.getComputedStyle(document.body);
+            const headerHeight: number = parseInt(bodyStyles.getPropertyValue('--header-height'));
+            dialogRef = this.dialog.open(TokenDialog, {
+                width: `${this.innerWidth.toString()}px`,
+                maxWidth: '100vw',
+                height: `${this.innerHeight - headerHeight}px`,
+                position: {
+                    'bottom': '0'
+                },
+                panelClass: 'g-dialog',
+                hasBackdrop: true, // Shadows beyond the dialog
+                closeOnNavigation: true,
+                autoFocus: false,
+                disableClose: true,
+                data: {
+                    token: element,
+                    contracts: this.contracts
+                }
+            });
+        } else {
+            dialogRef = this.dialog.open(TokenDialog, {
+                width: '750px',
+                panelClass: 'g-dialog',
+                disableClose: true,
+                data: {
+                    token: element,
+                    contracts: this.contracts
+                }
+            });
+        }
 
         dialogRef.afterClosed().subscribe(async (result) => {
             if (result) {
@@ -334,9 +423,11 @@ export class TokenConfigComponent implements OnInit {
                 result.tokenId = element.tokenId;
                 this.tokenService.pushUpdate(result).subscribe((result) => {
                     const { taskId, expectation } = result;
-                    this.taskId = taskId;
-                    this.expectedTaskMessages = expectation;
-                    this.operationMode = OperationMode.Create;
+                    this.router.navigate(['task', taskId], {
+                        queryParams: {
+                            last: btoa(location.href)
+                        }
+                    });
                 }, (e) => {
                     console.error(e.error);
                     this.loading = false;

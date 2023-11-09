@@ -1,5 +1,10 @@
 name: Guardian CI
-on: [push]
+on:
+  workflow_dispatch:
+    description: 'Manual run'
+  push:
+    branches-ignore:
+      - 'dependabot/**'
 jobs:
   buildAndTest:
     runs-on: ubuntu-latest
@@ -14,37 +19,39 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Build
         run: |
+          yarn
           pushd interfaces
-          npm install
-          npm run build
+          yarn run build
           popd
           pushd common
-          npm install
-          npm run build
+          yarn run build
           popd
           pushd logger-service
-          npm install
-          npm run build
+          yarn run build
+          popd
+          pushd notification-service
+          yarn run build
           popd
           pushd frontend
           npm install
           npm run build
+          npm run build:prod
+          npm run build:demo
           popd
           pushd auth-service
-          npm install
-          npm run build
+          yarn run build
+          popd
+          pushd policy-service
+          yarn run build
           popd
           pushd guardian-service
-          npm install
-          npm run build
+          yarn run build
           popd
           pushd worker-service
-          npm install
-          npm run build
+          yarn run build
           popd
           pushd api-gateway
-          npm install
-          npm run build
+          yarn run build
           popd
         env:
           CI: true
@@ -59,7 +66,13 @@ jobs:
           pushd logger-service
           npm run lint
           popd
+          pushd notification-service
+          npm run lint
+          popd
           pushd auth-service
+          npm run lint
+          popd
+          pushd policy-service
           npm run lint
           popd
           pushd guardian-service
@@ -75,6 +88,12 @@ jobs:
           CI: true
       - name: Test
         run: |
+          pushd common
+          npm run test
+          popd
+          pushd policy-service
+          npm run test
+          popd
           pushd guardian-service
           npm run test
           popd

@@ -5,7 +5,8 @@
         "lib": [
             "dom",
             "es5",
-            "es6"
+            "es6",
+            "ES2021.String"
         ],
         "moduleResolution": "node",
         "sourceMap": true,
@@ -13,7 +14,8 @@
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
         "esModuleInterop": true,
-        "declaration": true
+        "declaration": true,
+        "skipLibCheck": true
     },
     "include": [
         "src/**/*"

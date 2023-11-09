@@ -1,24 +1,29 @@
 import { Singleton } from '@helpers/decorators/singleton';
-import { PolicyEngineEvents } from '@guardian/interfaces';
-import { ServiceRequestsBase } from '@helpers/service-requests-base';
+import { GenerateUUIDv4, PolicyEngineEvents } from '@guardian/interfaces';
+import { NatsService } from '@guardian/common';
 
 /**
  * Policy engine service
  */
 @Singleton
-export class PolicyEngine extends ServiceRequestsBase {
+export class PolicyEngine extends NatsService {
     /**
-     * Messages target
+     * Message queue name
+     */
+    public messageQueueName = 'ipfs-queue';
+
+    /**
+     * Reply subject
      * @private
      */
-    public target: string = 'guardians'
+    public replySubject = 'ipfs-reply-' + GenerateUUIDv4();
 
     /**
      * Get policy
      * @param filters
      */
     public async getPolicy(filters): Promise<any> {
-        return await this.request(PolicyEngineEvents.GET_POLICY, filters);
+        return await this.sendMessage(PolicyEngineEvents.GET_POLICY, filters);
     }
 
     /**
@@ -35,7 +40,7 @@ export class PolicyEngine extends ServiceRequestsBase {
          */
         count: any
     }>(filters): Promise<T> {
-        return await this.request<T>(PolicyEngineEvents.GET_POLICIES, filters);
+        return await this.sendMessage<T>(PolicyEngineEvents.GET_POLICIES, filters);
     }
 
     /**
@@ -44,7 +49,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param status
      */
     public async getTokensMap(owner: string, status?: string): Promise<any> {
-        return await this.request<any>(PolicyEngineEvents.GET_TOKENS_MAP, { owner, status });
+        return await this.sendMessage<any>(PolicyEngineEvents.GET_TOKENS_MAP, { owner, status });
     }
 
     /**
@@ -53,17 +58,17 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param user
      */
     public async createPolicy(model, user) {
-        return await this.request(PolicyEngineEvents.CREATE_POLICIES, { model, user });
+        return await this.sendMessage(PolicyEngineEvents.CREATE_POLICIES, { model, user });
     }
 
     /**
      * Async create policy
      * @param model
      * @param user
-     * @param taskId
+     * @param task
      */
-    public async createPolicyAsync(model, user, taskId) {
-        return await this.request(PolicyEngineEvents.CREATE_POLICIES_ASYNC, { model, user, taskId });
+    public async createPolicyAsync(model, user, task) {
+        return await this.sendMessage(PolicyEngineEvents.CREATE_POLICIES_ASYNC, { model, user, task });
     }
 
     /**
@@ -71,20 +76,20 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId Policy identifier
      * @param model Policy configuration
      * @param user User
-     * @param taskId Task identifier
+     * @param task Task
      */
-    public async clonePolicyAsync(policyId, model, user, taskId) {
-        return await this.request(PolicyEngineEvents.CLONE_POLICY_ASYNC, { policyId, model, user, taskId });
+    public async clonePolicyAsync(policyId, model, user, task) {
+        return await this.sendMessage(PolicyEngineEvents.CLONE_POLICY_ASYNC, { policyId, model, user, task });
     }
 
     /**
      * Async delete policy
      * @param policyId Policy identifier
      * @param user User
-     * @param taskId Task identifier
+     * @param task Task
      */
-    public async deletePolicyAsync(policyId, user, taskId) {
-        return await this.request(PolicyEngineEvents.DELETE_POLICY_ASYNC, { policyId, user, taskId });
+    public async deletePolicyAsync(policyId, user, task) {
+        return await this.sendMessage(PolicyEngineEvents.DELETE_POLICY_ASYNC, { policyId, user, task });
     }
 
     /**
@@ -94,7 +99,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async savePolicy(model, user, policyId) {
-        return await this.request(PolicyEngineEvents.SAVE_POLICIES, { model, user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.SAVE_POLICIES, { model, user, policyId });
     }
 
     /**
@@ -104,7 +109,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async publishPolicy(model, user, policyId) {
-        return await this.request(PolicyEngineEvents.PUBLISH_POLICIES, { model, user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.PUBLISH_POLICIES, { model, user, policyId });
     }
 
     /**
@@ -112,10 +117,10 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param model
      * @param user
      * @param policyId
-     * @param taskId
+     * @param task
      */
-    public async publishPolicyAsync(model, user, policyId, taskId) {
-        return await this.request(PolicyEngineEvents.PUBLISH_POLICIES_ASYNC, { model, user, policyId, taskId });
+    public async publishPolicyAsync(model, user, policyId, task) {
+        return await this.sendMessage(PolicyEngineEvents.PUBLISH_POLICIES_ASYNC, { model, user, policyId, task });
     }
 
     /**
@@ -124,7 +129,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async dryRunPolicy(user: any, policyId: string) {
-        return await this.request(PolicyEngineEvents.DRY_RUN_POLICIES, { user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.DRY_RUN_POLICIES, { user, policyId });
     }
 
     /**
@@ -133,7 +138,11 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async draft(user: any, policyId: string) {
-        return await this.request(PolicyEngineEvents.DRAFT_POLICIES, { user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.DRAFT_POLICIES, { user, policyId });
+    }
+
+    public async restartPolicyInstance(user: any, policyId: string) {
+        return await this.sendMessage(PolicyEngineEvents.RESTART_POLICY_INSTANCE, {user, policyId});
     }
 
     /**
@@ -143,7 +152,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async validatePolicy(model, user, policyId?) {
-        return await this.request(PolicyEngineEvents.VALIDATE_POLICIES, { model, user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.VALIDATE_POLICIES, { model, user, policyId });
     }
 
     /**
@@ -152,7 +161,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async getPolicyBlocks(user, policyId) {
-        return await this.request(PolicyEngineEvents.POLICY_BLOCKS, { user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_BLOCKS, { user, policyId });
     }
 
     /**
@@ -162,7 +171,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param blockId
      */
     public async getBlockData(user, policyId, blockId: string) {
-        return await this.request(PolicyEngineEvents.GET_BLOCK_DATA, { user, blockId, policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_BLOCK_DATA, { user, blockId, policyId });
     }
 
     /**
@@ -172,7 +181,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param tag
      */
     public async getBlockDataByTag(user, policyId, tag: string) {
-        return await this.request(PolicyEngineEvents.GET_BLOCK_DATA_BY_TAG, { user, tag, policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_BLOCK_DATA_BY_TAG, { user, tag, policyId });
     }
 
     /**
@@ -183,7 +192,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param data
      */
     public async setBlockData(user, policyId, blockId: string, data: any) {
-        return await this.request(PolicyEngineEvents.SET_BLOCK_DATA, { user, blockId, policyId, data });
+        return await this.sendMessage(PolicyEngineEvents.SET_BLOCK_DATA, { user, blockId, policyId, data });
     }
 
     /**
@@ -194,7 +203,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param data
      */
     public async setBlockDataByTag(user, policyId, tag: string, data: any) {
-        return await this.request(PolicyEngineEvents.SET_BLOCK_DATA_BY_TAG, { user, tag, policyId, data });
+        return await this.sendMessage(PolicyEngineEvents.SET_BLOCK_DATA_BY_TAG, { user, tag, policyId, data });
     }
 
     /**
@@ -204,7 +213,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param tag
      */
     public async getBlockByTagName(user, policyId, tag: string) {
-        return await this.request(PolicyEngineEvents.BLOCK_BY_TAG, { user, tag, policyId });
+        return await this.sendMessage(PolicyEngineEvents.BLOCK_BY_TAG, { user, tag, policyId });
     }
 
     /**
@@ -214,7 +223,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param blockId
      */
     public async getBlockParents(user, policyId, blockId) {
-        return await this.request(PolicyEngineEvents.GET_BLOCK_PARENTS, { user, blockId, policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_BLOCK_PARENTS, { user, blockId, policyId });
     }
 
     /**
@@ -223,7 +232,8 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async exportFile(user, policyId) {
-        return await this.rawRequest(PolicyEngineEvents.POLICY_EXPORT_FILE, { policyId, user });
+        const file = await this.sendMessage(PolicyEngineEvents.POLICY_EXPORT_FILE, { policyId, user }) as any;
+        return Buffer.from(file, 'base64');
     }
 
     /**
@@ -232,16 +242,17 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async exportMessage(user, policyId) {
-        return await this.request(PolicyEngineEvents.POLICY_EXPORT_MESSAGE, { policyId, user });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_EXPORT_MESSAGE, { policyId, user });
     }
 
     /**
      * Load policy file for import
      * @param user
      * @param zip
+     * @param versionOfTopicId
      */
     public async importFile(user, zip, versionOfTopicId?) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_FILE, { zip, user, versionOfTopicId });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_FILE, { zip, user, versionOfTopicId });
     }
 
     /**
@@ -249,10 +260,10 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param user
      * @param zip
      * @param versionOfTopicId
-     * @param taskId
+     * @param task
      */
-    public async importFileAsync(user, zip, versionOfTopicId, taskId) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_FILE_ASYNC, { zip, user, versionOfTopicId, taskId });
+    public async importFileAsync(user, zip, versionOfTopicId, task) {
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_FILE_ASYNC, { zip, user, versionOfTopicId, task });
     }
 
     /**
@@ -261,7 +272,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param messageId
      */
     public async importMessage(user, messageId, versionOfTopicId) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_MESSAGE, { messageId, user, versionOfTopicId });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_MESSAGE, { messageId, user, versionOfTopicId });
     }
 
     /**
@@ -269,10 +280,10 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param user
      * @param messageId
      * @param versionOfTopicId
-     * @param taskId
+     * @param task
      */
-    public async importMessageAsync(user, messageId, versionOfTopicId, taskId) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_ASYNC, { messageId, user, versionOfTopicId, taskId });
+    public async importMessageAsync(user, messageId, versionOfTopicId, task) {
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_ASYNC, { messageId, user, versionOfTopicId, task });
     }
 
     /**
@@ -281,7 +292,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param zip
      */
     public async importFilePreview(user, zip) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_FILE_PREVIEW, { zip, user });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_FILE_PREVIEW, { zip, user });
     }
 
     /**
@@ -290,17 +301,17 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param messageId
      */
     public async importMessagePreview(user, messageId) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_PREVIEW, { messageId, user });
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_PREVIEW, { messageId, user });
     }
 
     /**
      * Async get policy info from message
      * @param user
      * @param messageId
-     * @param taskId
+     * @param task
      */
-    public async importMessagePreviewAsync(user, messageId, taskId: string) {
-        return await this.request(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_PREVIEW_ASYNC, { messageId, user, taskId });
+    public async importMessagePreviewAsync(user, messageId, task) {
+        return await this.sendMessage(PolicyEngineEvents.POLICY_IMPORT_MESSAGE_PREVIEW_ASYNC, { messageId, user, task });
     }
 
     /**
@@ -308,14 +319,14 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param data
      */
     public async receiveExternalData(data) {
-        return await this.request(PolicyEngineEvents.RECEIVE_EXTERNAL_DATA, data);
+        return await this.sendMessage(PolicyEngineEvents.RECEIVE_EXTERNAL_DATA, data);
     }
 
     /**
      * Get block about information
      */
     public async blockAbout() {
-        return await this.request(PolicyEngineEvents.BLOCK_ABOUT, null);
+        return await this.sendMessage(PolicyEngineEvents.BLOCK_ABOUT, null);
     }
 
     /**
@@ -323,7 +334,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async getVirtualUsers(policyId: string) {
-        return await this.request(PolicyEngineEvents.GET_VIRTUAL_USERS, { policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_VIRTUAL_USERS, { policyId });
     }
 
     /**
@@ -332,7 +343,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param did
      */
     public async createVirtualUser(policyId: string, did: string) {
-        return await this.request(PolicyEngineEvents.CREATE_VIRTUAL_USER, { policyId, did });
+        return await this.sendMessage(PolicyEngineEvents.CREATE_VIRTUAL_USER, { policyId, did });
     }
 
     /**
@@ -341,7 +352,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param did
      */
     public async loginVirtualUser(policyId: string, did: string) {
-        return await this.request(PolicyEngineEvents.SET_VIRTUAL_USER, { policyId, did });
+        return await this.sendMessage(PolicyEngineEvents.SET_VIRTUAL_USER, { policyId, did });
     }
 
     /**
@@ -351,7 +362,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async restartDryRun(model: any, user: any, policyId: string) {
-        return await this.request(PolicyEngineEvents.RESTART_DRY_RUN, { model, user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.RESTART_DRY_RUN, { model, user, policyId });
     }
 
     /**
@@ -367,7 +378,7 @@ export class PolicyEngine extends ServiceRequestsBase {
         pageIndex?: string,
         pageSize?: string
     ): Promise<[any[], number]> {
-        return await this.request(PolicyEngineEvents.GET_VIRTUAL_DOCUMENTS, {
+        return await this.sendMessage(PolicyEngineEvents.GET_VIRTUAL_DOCUMENTS, {
             policyId,
             type,
             pageIndex,
@@ -382,7 +393,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async getGroups(user: any, policyId: string) {
-        return await this.request(PolicyEngineEvents.GET_POLICY_GROUPS, { user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_POLICY_GROUPS, { user, policyId });
     }
 
     /**
@@ -393,7 +404,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param uuid
      */
     public async selectGroup(user: any, policyId: string, uuid: string) {
-        return await this.request(PolicyEngineEvents.SELECT_POLICY_GROUP, { user, policyId, uuid });
+        return await this.sendMessage(PolicyEngineEvents.SELECT_POLICY_GROUP, { user, policyId, uuid });
     }
 
     /**
@@ -402,7 +413,7 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param policyId
      */
     public async getMultiPolicy(user: any, policyId: any) {
-        return await this.request(PolicyEngineEvents.GET_MULTI_POLICY, { user, policyId });
+        return await this.sendMessage(PolicyEngineEvents.GET_MULTI_POLICY, { user, policyId });
     }
 
     /**
@@ -412,6 +423,6 @@ export class PolicyEngine extends ServiceRequestsBase {
      * @param data
      */
     public async setMultiPolicy(user: any, policyId, data: any) {
-        return await this.request(PolicyEngineEvents.SET_MULTI_POLICY, { user, policyId, data });
+        return await this.sendMessage(PolicyEngineEvents.SET_MULTI_POLICY, { user, policyId, data });
     }
 }

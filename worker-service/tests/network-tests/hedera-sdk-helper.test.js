@@ -16,18 +16,19 @@ async function delay(ms) {
 }
 
 describe('Hedera SDK Helper', function () {
-    const transactionTimeout = 30 * 1000;
+    const transactionTimeout = 90 * 1000;
 
     let sdk, accountId, accountKey, tokenId, account2Id, account2Key, token2Id, nft;
 
     const initialBalance = 5;
     const OPERATOR_ID = process.env.OPERATOR_ID;
     const OPERATOR_KEY = process.env.OPERATOR_KEY;
+    const HEDERA_NET = process.env.HEDERA_NET || 'testnet';
 
     this.timeout(60 * transactionTimeout);
 
     before(async function () {
-        sdk = new HederaSDKHelper(OPERATOR_ID, OPERATOR_KEY);
+        sdk = new HederaSDKHelper(OPERATOR_ID, OPERATOR_KEY, null, { network: HEDERA_NET });
     });
 
     it('Test SDK newAccount', async function () {

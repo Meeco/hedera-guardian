@@ -18,6 +18,11 @@ body {
     font-weight: 300;
 }
 
+body > .leader-line,
+body > .leader-line-areaAnchor {
+    display: none !important;
+}
+
 .mat-subheading-1,
 .mat-typography h4 {
     font-size: 20px;
@@ -35,6 +40,7 @@ body {
 
         .btn-home {
             color: #fff;
+            cursor: pointer;
         }
 
         .example-icon mat-icon {
@@ -50,10 +56,6 @@ body {
     color: #fff !important;
     position: relative;
     top: -6px;
-}
-
-.user-profile .list {
-    margin: 20px auto !important;
 }
 
 .list {
@@ -104,6 +106,10 @@ body {
 
 .guardian-tooltip {
     font-size: 16px;
+    overflow-wrap: break-word !important;
+    &.small-guardian-tooltip {
+        font-size: 12px;
+    }
 }
 
 button.mat-raised-button,
@@ -194,4 +200,122 @@ button.mat-button {
 
 .error-message-toastr .toast-close-button {
     color: #fa1905 !important;
+}
+
+.info-message-toastr {
+    background-color: #ffffff !important;
+    border: 1px solid #3f51b5 !important;
+    color: #3f51b5 !important;
+    background-image: none !important;
+    box-shadow: 0 0 0px 1px #ffffff, 1px 1px 8px 1px #999999 !important;
+    margin: 1px 1px 6px 1px !important;
+    padding: 15px 15px 15px 15px !important;
+}
+
+.info-message-toastr .toast-close-button {
+    color: #3f51b5 !important;
+}
+
+.info-message-toastr a {
+    color: #3f51b5 !important;
+    font-weight: bold !important;
+    padding: 0px 2px !important;
+    text-decoration: underline !important;
+}
+
+*[theme-block] {
+    color: var(--theme-color);
+    border-color: var(--theme-border-color);
+    background: var(--theme-background);
+    border-radius: var(--theme-border-radius);
+    border-width: var(--theme-border-width);
+    border-style: var(--theme-border-style);
+}
+
+*[theme-all] {
+    color: var(--theme-color) !important;
+    border-color: var(--theme-border-color) !important;
+    background: var(--theme-background) !important;
+    border-radius: var(--theme-border-radius) !important;
+    border-width: var(--theme-border-width) !important;
+    border-style: var(--theme-border-style) !important;
+}
+
+*[theme-block][theme-text],
+*[theme-all] *[theme-text],
+*[theme-block] *[theme-text] {
+    color: var(--theme-color) !important;
+}
+
+*[theme-block][theme-border],
+*[theme-all] *[theme-border],
+*[theme-block] *[theme-border] {
+    border-color: var(--theme-border-color) !important;
+    border-radius: var(--theme-border-radius) !important;
+    border-width: var(--theme-border-width) !important;
+    border-style: var(--theme-border-style) !important;
+}
+
+*[theme-block][theme-background],
+*[theme-all] *[theme-background],
+*[theme-block] *[theme-background] {
+    background: var(--theme-background) !important;
+}
+
+@media (max-width: 810px) {
+
+    body {
+        overflow-x: hidden;
+        overscroll-behavior: none;
+        width: 100%;
+        height: calc(var(--vh, 1vh) * 100);
+    }
+
+    html {
+        height: 100%
+    }
+
+    .cdk-overlay-pane {
+        .mat-dialog-container {
+            border-radius: 5px;
+
+            .mat-dialog-content {
+                max-height: unset;
+            }
+        }
+
+        .mat-menu-panel {
+            max-width: unset;
+            max-height: unset;
+        }
+    }
+
+    button {
+        box-shadow: none !important;
+    }
+
+    .loading {
+        overflow-y: auto;
+    }
+}
+
+.draft-topic-option {
+    &.mat-option {
+        overflow: visible;
+        margin-bottom: 14px;
+    }
+
+    &:after {
+        content: " ";
+        position: absolute;
+        height: 2px;
+        background-color: #757575;
+        left: 16px;
+        right: 16px;
+        bottom: -8px;
+    }
+}
+
+.notification-menu-panel {
+    border-radius: 15px !important;
 }

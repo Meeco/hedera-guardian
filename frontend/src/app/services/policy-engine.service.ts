@@ -1,9 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpResponse } from '@angular/common/http';
-import { Observable, Subject, Subscription } from 'rxjs';
-import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket';
-import { AuthService } from './auth.service';
-import { ToastrService } from 'ngx-toastr';
+import { Observable } from 'rxjs';
 import { API_BASE_URL } from './api';
 
 /**
@@ -152,22 +149,9 @@ export class PolicyEngineService {
         });
     }
 
-    public blockAbout(): Observable<any> {
+    public getBlockInformation(): Observable<any> {
         return this.http.get<any>(`${this.url}/blocks/about`);
     }
-
-    private getBaseUrl() {
-        let url = location.origin;
-        if (/^https/.test(url)) {
-            return `${url.replace(/^https/, 'wss')}`;
-        }
-        return `${url.replace(/^http/, 'ws')}`;
-    }
-
-    private getUrl(accessToken: string | null) {
-        return `${this.getBaseUrl()}/ws/?token=${accessToken}`;
-    }
-
 
     public getVirtualUsers(policyId: string): Observable<any[]> {
         return this.http.get<any>(`${this.url}/${policyId}/dry-run/users`);

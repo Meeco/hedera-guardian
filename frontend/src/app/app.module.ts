@@ -2,18 +2,37 @@ import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClientJsonpModule, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { ToastrModule } from 'ngx-toastr';
-import { AppRoutingModule, AuditorGuard, UserGuard, StandardRegistryGuard } from './app-routing.module';
+import { AppRoutingModule, AuditorGuard, StandardRegistryGuard, UserGuard } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { AuthInterceptor, AuthService } from "./services/auth.service";
-import { ProfileService } from "./services/profile.service";
+import { SchemaHelper } from '@guardian/interfaces';
+//Services
+import { AuthInterceptor, AuthService } from './services/auth.service';
+import { ProfileService } from './services/profile.service';
 import { TokenService } from './services/token.service';
 import { SchemaService } from './services/schema.service';
-import { HandleErrorsService } from "./services/handle-errors.service";
+import { HandleErrorsService } from './services/handle-errors.service';
 import { AuditService } from './services/audit.service';
 import { PolicyEngineService } from './services/policy-engine.service';
+import { DemoService } from './services/demo.service';
+import { PolicyHelper } from './services/policy-helper.service';
+import { IPFSService } from './services/ipfs.service';
+import { SettingsService } from './services/settings.service';
+import { LoggerService } from './services/logger.service';
+import { TasksService } from './services/tasks.service';
+import { ArtifactService } from './services/artifact.service';
+import { ContractService } from './services/contract.service';
+import { WebSocketService } from './services/web-socket.service';
+import { MessageTranslationService } from './services/message-translation-service/message-translation-service';
+import { AnalyticsService } from './services/analytics.service';
+import { ModulesService } from './services/modules.service';
+import { TagsService } from './services/tag.service';
+import { MapService } from './services/map.service';
+import { WizardService } from './modules/policy-engine/services/wizard.service';
+import { NotificationService } from './services/notify.service';
+//Views
 import { UserProfileComponent } from './views/user-profile/user-profile.component';
 import { LoginComponent } from './views/login/login.component';
 import { HomeComponent } from './views/home/home.component';
@@ -21,37 +40,41 @@ import { HeaderComponent } from './views/header/header.component';
 import { RegisterComponent } from './views/register/register.component';
 import { RootConfigComponent } from './views/root-config/root-config.component';
 import { TokenConfigComponent } from './views/token-config/token-config.component';
-import { SchemaConfigComponent } from './views/schema-config/schema-config.component';
-import { TokenDialog } from './components/token-dialog/token-dialog.component';
 import { AuditComponent } from './views/audit/audit.component';
 import { TrustChainComponent } from './views/trust-chain/trust-chain.component';
-import { NewPolicyDialog } from './policy-engine/helpers/new-policy-dialog/new-policy-dialog.component';
-import { DemoService } from './services/demo.service';
-import { PolicyHelper } from './services/policy-helper.service';
-import { MaterialModule } from './material.module';
-import { PolicyEngineModule } from './policy-engine/policy-engine.module';
-import { IPFSService } from './services/ipfs.service';
-import { SettingsService } from './services/settings.service';
-import { LoggerService } from './services/logger.service';
 import { AdminHeaderComponent } from './views/admin/admin-header/admin-panel.component';
 import { LogsViewComponent } from './views/admin/logs-view/logs-view.component';
 import { SettingsViewComponent } from './views/admin/settings-view/settings-view.component';
-import { IconPreviewDialog } from './components/icon-preview-dialog/icon-preview-dialog.component';
 import { DetailsLogDialog } from './views/admin/details-log-dialog/details-log-dialog.component';
 import { ServiceStatusComponent } from './views/admin/service-status/service-status.component';
-import { CommonComponentsModule } from './common-components.module';
-import { ConfirmationDialogComponent } from './components/confirmation-dialog/confirmation-dialog.component';
+import { SchemaConfigComponent } from './views/schemas/schemas.component';
+import { BrandingDialogComponent } from './components/branding-dialog/branding-dialog.component';
+import { NotificationsComponent } from './views/notifications/notifications.component';
+//Components
 import { InfoComponent } from './components/info/info/info.component';
-import { WebSocketService } from './services/web-socket.service';
-import { MessageTranslationService } from './services/message-translation-service/message-translation-service';
-import { TasksService } from './services/tasks.service';
-import { ArtifactService } from './services/artifact.service';
-import { ContractConfigComponent } from './views/contract-config/contract-config.component';
-import { ContractService } from './services/contract.service';
-import { ContractRequestConfigComponent } from './views/contract-request-config/contract-request-config.component';
-import { AddPairDialogComponent } from './components/add-pair-dialog/add-pair-dialog.component';
-import { RetireTokenDialogComponent } from './components/retire-token-dialog/retire-token-dialog.component';
-import { DataInputDialogComponent } from './components/data-input-dialog/data-input-dialog.component';
+import { BrandingComponent } from './views/branding/branding.component';
+import { StandardRegistryCardComponent } from './components/standard-registry-card/standard-registry-card.component';
+import { SuggestionsConfigurationComponent } from './views/suggestions-configuration/suggestions-configuration.component';
+import { NotificationComponent } from './components/notification/notification.component';
+//Modules
+import { MaterialModule } from './modules/common/material.module';
+import { PolicyEngineModule } from './modules/policy-engine/policy-engine.module';
+import { CompareModule } from './modules/analytics/analytics.module';
+import { CommonComponentsModule } from './modules/common/common-components.module';
+import { TagEngineModule } from './modules/tag-engine/tag-engine.module';
+import { SchemaEngineModule } from './modules/schema-engine/schema-engine.module'
+import { ThemeService } from './services/theme.service';
+import { ContractEngineModule } from './modules/contract-engine/contract-engine.module';
+// Injectors
+import { GET_SCHEMA_NAME } from './injectors/get-schema-name.injector';
+import { BLOCK_TYPE_TIPS, BLOCK_TYPE_TIPS_VALUE, } from './injectors/block-type-tips.injector';
+import { SuggestionsService } from './services/suggestions.service';
+import { QrCodeDialogComponent } from './components/qr-code-dialog/qr-code-dialog.component';
+import { QRCodeModule } from 'angularx-qrcode';
+import { MeecoVCSubmitDialogComponent } from './components/meeco-vc-submit-dialog/meeco-vc-submit-dialog.component';
+import { AboutViewComponent } from './views/admin/about-view/about-view.component';
+import { CompareStorage } from './services/compare-storage.service';
+import { ToolsService } from './services/tools.service';
 
 @NgModule({
     declarations: [
@@ -63,24 +86,24 @@ import { DataInputDialogComponent } from './components/data-input-dialog/data-in
         RegisterComponent,
         RootConfigComponent,
         TokenConfigComponent,
-        TokenDialog,
-        SchemaConfigComponent,
         AuditComponent,
         TrustChainComponent,
-        NewPolicyDialog,
         LogsViewComponent,
         SettingsViewComponent,
+        AboutViewComponent,
         AdminHeaderComponent,
-        IconPreviewDialog,
         DetailsLogDialog,
         ServiceStatusComponent,
-        ConfirmationDialogComponent,
         InfoComponent,
-        ContractConfigComponent,
-        ContractRequestConfigComponent,
-        AddPairDialogComponent,
-        RetireTokenDialogComponent,
-        DataInputDialogComponent,
+        SchemaConfigComponent,
+        BrandingComponent,
+        BrandingDialogComponent,
+        SuggestionsConfigurationComponent,
+        StandardRegistryCardComponent,
+        NotificationComponent,
+        NotificationsComponent,
+        QrCodeDialogComponent,
+        MeecoVCSubmitDialogComponent,
     ],
     imports: [
         BrowserModule,
@@ -91,8 +114,13 @@ import { DataInputDialogComponent } from './components/data-input-dialog/data-in
         BrowserAnimationsModule,
         HttpClientModule,
         FormsModule,
+        SchemaEngineModule,
+        PolicyEngineModule,
+        TagEngineModule,
+        CompareModule,
         ToastrModule.forRoot(),
-        PolicyEngineModule
+        HttpClientJsonpModule,
+        QRCodeModule,
     ],
     exports: [],
     providers: [
@@ -104,6 +132,7 @@ import { DataInputDialogComponent } from './components/data-input-dialog/data-in
         ProfileService,
         TokenService,
         SchemaService,
+        AnalyticsService,
         AuditService,
         PolicyEngineService,
         PolicyHelper,
@@ -115,19 +144,34 @@ import { DataInputDialogComponent } from './components/data-input-dialog/data-in
         MessageTranslationService,
         TasksService,
         ContractService,
+        ModulesService,
+        ToolsService,
+        MapService,
+        TagsService,
+        ThemeService,
+        WizardService,
+        SuggestionsService,
+        NotificationService,
+        CompareStorage,
+        {
+            provide: GET_SCHEMA_NAME,
+            useValue: SchemaHelper.getSchemaName
+        },
+        {
+            provide: BLOCK_TYPE_TIPS,
+            useValue: BLOCK_TYPE_TIPS_VALUE
+        },
         {
             provide: HTTP_INTERCEPTORS,
             useClass: HandleErrorsService,
-            multi: true
+            multi: true,
         },
         {
             provide: HTTP_INTERCEPTORS,
             useClass: AuthInterceptor,
-            multi: true
-        }
+            multi: true,
+        },
     ],
-    bootstrap: [AppComponent]
+    bootstrap: [AppComponent],
 })
-export class AppModule {
-
-}
+export class AppModule { }

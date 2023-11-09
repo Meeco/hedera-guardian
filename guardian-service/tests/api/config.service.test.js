@@ -12,14 +12,13 @@ moduleAlias.addAliases({
   "@policy-engine": process.cwd() + '/dist' + "/policy-engine",
   "@hedera-modules": process.cwd() + '/dist' +  "/hedera-modules/index",
   "@document-loader": process.cwd() + '/dist' +  "/document-loader",
+  "@analytics": process.cwd() + '/dist' +  "/analytics",
   "@database-modules": process.cwd() + '/dist' + "/database-modules"
 });
 const { expect, assert } = require('chai');
 const rewire = require("rewire");
 
 const { ApplicationState } = require("@guardian/common");
-const { Settings } = require("../../dist/entity/settings");
-const { Topic } = require("../../dist/entity/topic");
 const state = new ApplicationState();
 state.updateState('READY');
 

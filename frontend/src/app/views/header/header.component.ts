@@ -1,8 +1,8 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
-import { IUser, UserRole } from '@guardian/interfaces';
-import { Observable, Subscription } from 'rxjs';
+import { NavigationEnd, Router } from '@angular/router';
+import { IUser } from '@guardian/interfaces';
+import { Observable } from 'rxjs';
 import { AuthStateService } from 'src/app/services/auth-state.service';
 import { DemoService } from 'src/app/services/demo.service';
 import { HeaderPropsService } from 'src/app/services/header-props.service';
@@ -20,24 +20,27 @@ import { AuthService } from '../../services/auth.service';
     styleUrls: ['./header.component.css']
 })
 export class HeaderComponent implements OnInit {
-    links: any = null;
     activeLink: string = "";
     activeLinkRoot: string = "";
     role: any = null;
     isLogin: boolean = false;
     username: string | null = null;
-    linksConfig: any = {
-        default: null
-    };
     commonLinksDisabled: boolean = false;
-
     menuIcon: 'expand_more' | 'account_circle' = 'expand_more';
     testUsers$: Observable<any[]>;
     balance: string;
     balanceType: string;
+    balanceInit: boolean = false;
     ws!: any;
     authSubscription!: any;
     displayDemoAccounts: boolean = environment.displayDemoAccounts;
+    hederaAccountID: string | undefined;
+    profileData: IUser | null = null;
+    mobileMenuOpen: boolean = false;
+    subMenuOpen: any = {};
+    userInfoVisible: boolean = false;
+
+    oldUserName: string | null;
 
     constructor(
         public authState: AuthStateService,
@@ -52,74 +55,6 @@ export class HeaderComponent implements OnInit {
         this.balance = 'N\\A';
         this.balanceType = '';
         this.testUsers$ = this.otherService.getAllUsers();
-
-        this.linksConfig[UserRole.USER] = [{
-            name: "Profile",
-            disabled: false,
-            link: '/user-profile'
-        }, {
-            name: "Policies",
-            disabled: false,
-            link: '/policy-viewer'
-        }];
-        this.linksConfig[UserRole.STANDARD_REGISTRY] = [{
-            name: "Profile",
-            disabled: false,
-            link: '/config'
-        }, {
-            name: "Schemas",
-            disabled: false,
-            link: '/schemas'
-        }, {
-            name: "Tokens",
-            disabled: false,
-            link: '/tokens'
-        },
-        {
-            name: "Contracts",
-            disabled: false,
-            link: '/contracts',
-            links: [
-                '/contracts/pairs'
-            ]
-        },
-        {
-            name: "Artifacts",
-            disabled: false,
-            link: '/artifacts'
-        },
-        {
-            name: "Policies",
-            disabled: false,
-            link: '/policy-viewer',
-            pattern: new RegExp('^\/policy-viewer\/\\w+')
-        }, {
-            name: "Policies configuration",
-            disabled: false,
-            link: '/policy-configuration',
-            hidden: true,
-        },
-        {
-            name: "Admin",
-            disabled: false,
-            link: '/admin/settings',
-            links: [
-                '/admin/settings',
-                '/admin/logs',
-                '/admin/status'
-            ]
-        }];
-        this.linksConfig[UserRole.AUDITOR] = [{
-            name: "Audit",
-            disabled: false,
-            link: '/audit'
-        }, {
-            name: "Trust Chain",
-            disabled: false,
-            link: '/trust-chain'
-        }];
-
-        this.links = this.linksConfig.default;
         this.router.events.subscribe((event) => {
             if (event instanceof NavigationEnd) {
                 this.update();
@@ -129,7 +64,9 @@ export class HeaderComponent implements OnInit {
     }
 
     ngOnInit() {
-        this.activeLink = "";
+        // this.innerWidth = window.innerWidth;
+        // this.innerHeight = window.innerHeight;
+        this.activeLink = '';
         this.update();
         this.ws = this.webSocketService.profileSubscribe((event) => {
             if (event.type === 'PROFILE_BALANCE') {
@@ -153,9 +90,12 @@ export class HeaderComponent implements OnInit {
             this.balanceType = '';
         });
 
-        this.getBallance();
-        this.authSubscription = this.auth.subscribe(() => {
-            this.getBallance();
+        this.authSubscription = this.auth.subscribe((token) => {
+            const username = this.auth.getUsername();
+            if (token && (username !== this.oldUserName)) {
+                this.getBallance();
+                this.oldUserName = username;
+            }
         })
     }
 
@@ -171,10 +111,20 @@ export class HeaderComponent implements OnInit {
     }
 
     getBallance() {
+        if (!this.isLogin) {
+            return;
+        }
+        this.balanceInit = true;
         this.auth.balance().subscribe((balance: any) => {
             if (balance && balance.balance) {
                 const b = parseFloat(balance.balance);
-                this.balance = `${b.toFixed(3)} ${balance.unit}`;
+                if (b > 999) {
+                    this.balance = `${b.toFixed(0)} ${balance.unit}`;
+                } else if (b > 99) {
+                    this.balance = `${b.toFixed(2)} ${balance.unit}`;
+                } else if (b > 9) {
+                    this.balance = `${b.toFixed(3)} ${balance.unit}`;
+                }
                 if (b > 100) {
                     this.balanceType = 'normal';
                 } else if (b > 20) {
@@ -193,7 +143,7 @@ export class HeaderComponent implements OnInit {
     }
 
     async update() {
-        if (this.activeLink == this.router.url) {
+        if (this.activeLink === this.router.url) {
             return;
         }
         this.activeLink = this.router.url;
@@ -203,25 +153,21 @@ export class HeaderComponent implements OnInit {
             const role = user ? user.role : null;
             const username = user ? user.username : null;
             this.setStatus(isLogin, role, username);
-            this.authState.updateState(isLogin);
+            this.authState.updateState(isLogin, true);
+            if (!this.balanceInit) {
+                this.getBallance();
+            }
         }, () => {
             this.setStatus(false, null, null);
         });
     }
 
     setStatus(isLogin: boolean, role: any, username: any) {
-        if (this.isLogin != isLogin || this.role != role) {
+        if (this.isLogin !== isLogin || this.role !== role) {
             this.isLogin = isLogin;
             this.role = role;
             this.username = username;
-
             this.menuIcon = this.isLogin ? 'account_circle' : 'expand_more';
-
-            if (this.isLogin) {
-                this.links = this.linksConfig[this.role];
-            } else {
-                this.links = this.linksConfig.default;
-            }
         }
     }
 
@@ -244,23 +190,6 @@ export class HeaderComponent implements OnInit {
         this.router.navigate([link.link]);
     }
 
-    isActive(link: any) {
-        if (this.activeLink == link.link || this.activeLinkRoot == link.link) {
-            return true;
-        }
-        if (link.links) {
-            return link.links.indexOf(this.activeLink) !== -1 || link.links.indexOf(this.activeLinkRoot) !== -1;
-        }
-        if (link.pattern) {
-            return link.pattern.test(this.activeLink);
-        }
-        return this.activeLink == link.link || this.activeLinkRoot == link.link;
-    }
-
-    isHidden(link: any) {
-        return link.hidden && !this.isActive(link);
-    }
-
     onHome() {
         this.router.navigate(['/']);
     }
@@ -273,5 +202,214 @@ export class HeaderComponent implements OnInit {
         return policyRoles.map((item: any) => {
             return `${item.name} (${item.version}): ${item.role}`
         }).join('\r\n');
+    }
+
+    public isActiveLink(type: string): boolean {
+        switch (type) {
+            case 'SR_UP':
+                return this.activeLinkRoot === '/config';
+            case 'SR_TOKENS':
+                return (
+                    this.activeLinkRoot === '/tokens' ||
+                    this.activeLinkRoot === '/contracts' ||
+                    this.activeLinkRoot === '/contracts/pairs'
+                );
+            case 'SR_POLICIES':
+                return (
+                    this.activeLinkRoot === '/schemas' ||
+                    this.activeLinkRoot === '/artifacts' ||
+                    this.activeLinkRoot === '/modules' ||
+                    this.activeLinkRoot === '/tools' ||
+                    this.activeLinkRoot === '/suggestions' ||
+                    this.activeLinkRoot === '/policy-viewer' ||
+                    this.activeLinkRoot === '/policy-configuration' ||
+                    this.activeLinkRoot === '/compare' ||
+                    this.activeLinkRoot === '/search' ||
+                    /^\/policy-configuration\/\w+/.test(this.activeLinkRoot) ||
+                    this.activeLinkRoot === 'policy-configuration'
+                );
+            case 'SR_ADMIN':
+                return (
+                    this.activeLinkRoot === '/admin/settings' ||
+                    this.activeLinkRoot === '/admin/logs' ||
+                    this.activeLinkRoot === '/admin/status'
+                );
+            case 'SR_TOKENS_LIST':
+                return this.activeLinkRoot === '/tokens';
+            case 'SR_CONTRACTS':
+                return this.activeLinkRoot === '/contracts';
+            case 'SR_CONTRACTS_PAIRS':
+                return this.activeLinkRoot === '/contracts/pairs';
+            case 'SR_SCHEMAS':
+                return this.activeLinkRoot === '/schemas';
+            case 'SR_ARTIFACTS':
+                return this.activeLinkRoot === '/artifacts';
+            case 'SR_MODULES':
+                return this.activeLinkRoot === '/modules';
+            case 'SR_TOOLS':
+                return this.activeLinkRoot === '/tools';
+            case 'SR_SUGGESTIONS':
+                return this.activeLinkRoot === '/suggestions';
+            case 'SR_POLICIES_LIST':
+                return this.activeLinkRoot === '/policy-viewer';
+            case 'SR_VIEWER':
+                return /^\/policy-viewer\/\w+/.test(this.activeLinkRoot);
+            case 'SR_EDITOR':
+                return this.activeLinkRoot === '/policy-configuration';
+            case 'SR_COMPARE':
+                return this.activeLinkRoot === '/compare';
+            case 'SR_SEARCH':
+                return this.activeLinkRoot === '/search';
+            case 'SR_SETTINGS':
+                return this.activeLinkRoot === '/admin/settings';
+            case 'SR_LOGS':
+                return this.activeLinkRoot === '/admin/logs';
+            case 'SR_STATUS':
+                return this.activeLinkRoot === '/admin/status';
+            case 'SR_ABOUT':
+                return this.activeLinkRoot === '/admin/about';
+            case 'USER_TOKENS':
+                return this.activeLink === '/user-profile?tab=tokens';
+            case 'USER_RETIRE':
+                return this.activeLink === '/user-profile?tab=retire';
+            case 'USER_UP':
+                return (this.activeLinkRoot === '/user-profile' && (
+                    this.activeLink !== '/user-profile?tab=tokens' &&
+                    this.activeLink !== '/user-profile?tab=retire'
+                ));
+            case 'USER_POLICIES':
+                return this.activeLinkRoot === '/policy-viewer';
+
+            case 'AUDITOR_UP':
+                return this.activeLinkRoot === '/audit';
+            case 'AUDITOR_TRUST_CHAIN':
+                return this.activeLinkRoot === '/trust-chain';
+        }
+        return false;
+    }
+
+
+    public mobileRoutActive(type: string): boolean {
+        this.closeNav();
+        return this.routActive(type);
+    }
+
+    public routActive(type: string): boolean {
+        switch (type) {
+            case 'SR_UP':
+                this.router.navigate(['/config']);
+                return true;
+            case 'SR_TOKENS':
+                return false;
+            case 'SR_POLICIES':
+                return false;
+            case 'SR_ADMIN':
+                return false;
+            case 'SR_TOKENS_LIST':
+                this.router.navigate(['/tokens']);
+                return true;
+            case 'SR_CONTRACTS':
+                this.router.navigate(['/contracts']);
+                return true;
+            case 'SR_CONTRACTS_PAIRS':
+                return false;
+            case 'SR_SCHEMAS':
+                this.router.navigate(['/schemas']);
+                return true;
+            case 'SR_ARTIFACTS':
+                this.router.navigate(['/artifacts']);
+                return true;
+            case 'SR_MODULES':
+                this.router.navigate(['/modules']);
+                return true;
+            case 'SR_TOOLS':
+                this.router.navigate(['/tools']);
+                return true;
+            case 'SR_POLICIES_LIST':
+                this.router.navigate(['/policy-viewer']);
+                return true;
+            case 'SR_SUGGESTIONS':
+                this.router.navigate(['/suggestions']);
+                return true;
+            case 'SR_VIEWER':
+                return false;
+            case 'SR_EDITOR':
+                return false;
+            case 'SR_COMPARE':
+                return false;
+            case 'SR_SEARCH':
+                return false;
+            case 'SR_SETTINGS':
+                this.router.navigate(['/admin/settings']);
+                return true;
+            case 'SR_LOGS':
+                this.router.navigate(['/admin/logs']);
+                return true;
+            case 'SR_STATUS':
+                this.router.navigate(['/admin/status']);
+                return true;
+            case 'SR_ABOUT':
+                this.router.navigate(['/admin/about']);
+                return true;
+
+            case 'USER_TOKENS':
+                this.router.navigate(['/user-profile'], {
+                    queryParams: { tab: 'tokens' }
+                });
+                return true;
+            case 'USER_RETIRE':
+                this.router.navigate(['/user-profile'], {
+                    queryParams: { tab: 'retire' }
+                });
+                return true;
+            case 'USER_UP':
+                this.router.navigate(['/user-profile']);
+                return true;
+            case 'USER_POLICIES':
+                this.router.navigate(['/policy-viewer']);
+                return true;
+
+            case 'AUDITOR_UP':
+                this.router.navigate(['/audit']);
+                return true;
+            case 'AUDITOR_TRUST_CHAIN':
+                this.router.navigate(['/trust-chain']);
+                return true;
+        }
+        return false;
+    }
+
+    doBranding() {
+        this.router.navigate(['/branding']);
+    }
+
+    openNav() {
+        this.mobileMenuOpen = true;
+        this.profileService.getProfile().subscribe(
+            (profile: IUser) => {
+                this.profileData = profile;
+                this.hederaAccountID = this.profileData.hederaAccountId;
+            },
+            ({ message }) => {
+                console.error('Failed to get profile data:', message);
+            }
+        );
+    }
+
+    closeNav() {
+        this.mobileMenuOpen = false;
+    }
+
+    openSubMenu(subMenuID: string) {
+        this.userInfoVisible = true;
+        this.subMenuOpen[subMenuID] = !this.subMenuOpen[subMenuID];
+        for (const index of Object.keys(this.subMenuOpen)) {
+            if (index !== subMenuID) {
+                this.subMenuOpen[index] = false;
+            }
+            if (this.subMenuOpen[index]) {
+                this.userInfoVisible = false;
+            }
+        }
     }
 }

@@ -1,11 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuditService } from 'src/app/services/audit.service';
+import { AuditService } from '../../services/audit.service';
 import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
-import { VCViewerDialog } from 'src/app/schema-engine/vc-dialog/vc-dialog.component';
-import { PolicyEngineService } from 'src/app/services/policy-engine.service';
+import { VCViewerDialog } from '../../modules/schema-engine/vc-dialog/vc-dialog.component';
+import { PolicyEngineService } from '../../services/policy-engine.service';
 import { HttpResponse } from '@angular/common/http';
 
 /**
@@ -122,9 +122,9 @@ export class AuditComponent implements OnInit {
             setTimeout(() => {
                 this.loading = false;
             }, 500);
-        }, (error) => {
+        }, ({ message }) => {
             this.loading = false;
-            console.error(error);
+            console.error(message);
         });
     }
 
@@ -137,15 +137,19 @@ export class AuditComponent implements OnInit {
         this.currentPolicy = this.policies.find(p => p.id == this.currentPolicy)?.id || '';
     }
 
-    openVP(document: any) {
+    openVP(element: any) {
         const dialogRef = this.dialog.open(VCViewerDialog, {
             width: '850px',
+            panelClass: 'g-dialog',
             data: {
-                document: document,
+                id: element.id,
+                dryRun: !!element.dryRunId,
+                document: element.document,
                 title: 'VP',
                 type: 'VP',
                 viewDocument: true
-            }
+            },
+            disableClose: true,
         });
         dialogRef.afterClosed().subscribe(async (result) => { });
     }
