@@ -1,80 +1,42 @@
 import { DatabaseServer } from '@guardian/common';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { ToolModel } from '../models/tool.model';
-import { SchemaModel } from '../models/schema.model';
-import { ICompareResult } from '../interfaces/compare-result.interface';
-import { IMultiCompareResult } from '../interfaces/multi-compare-result.interface';
-import { FileModel } from '../models/file.model';
-import { ReportTable } from '../../table/report-table';
-import { ComparePolicyUtils } from '../utils/compare-policy-utils';
-import { BlocksRate } from '../rates/blocks-rate';
-import { IRate } from '../interfaces/rate.interface';
-import { CompareUtils } from '../utils/utils';
-import { CSV } from '../../table/csv';
-import { IReportTable } from '../interfaces/report-table.interface';
-import { MultiCompareUtils } from '../utils/multi-compare-utils';
+import { CompareOptions, IChildrenLvl, IEventsLvl, IIdLvl, IKeyLvl, IPropertiesLvl, IRefLvl } from '../interfaces/compare-options.interface.js';
+import { ToolModel } from '../models/tool.model.js';
+import { SchemaModel } from '../models/schema.model.js';
+import { ICompareResult } from '../interfaces/compare-result.interface.js';
+import { IMultiCompareResult } from '../interfaces/multi-compare-result.interface.js';
+import { FileModel } from '../models/file.model.js';
+import { ReportTable } from '../../table/report-table.js';
+import { ComparePolicyUtils } from '../utils/compare-policy-utils.js';
+import { BlocksRate } from '../rates/blocks-rate.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { CompareUtils } from '../utils/utils.js';
+import { CSV } from '../../table/csv.js';
+import { IReportTable } from '../interfaces/report-table.interface.js';
+import { MultiCompareUtils } from '../utils/multi-compare-utils.js';
 
 /**
  * Component for comparing tools
  */
 export class ToolComparator {
     /**
-     * Properties
-     * 0 - Don't compare
-     * 1 - Only simple properties
-     * 2 - All properties
-     * @private
-     */
-    private readonly propLvl: number;
-
-    /**
-     * Children
-     * 0 - Don't compare
-     * 1 - Only child blocks of the first level
-     * 2 - All children
-     * @private
-     */
-    private readonly childLvl: number;
-
-    /**
-     * Events
-     * 0 - Don't compare
-     * 1 - All events
-     * @private
-     */
-    private readonly eventLvl: number;
-
-    /**
-     * UUID
-     * 0 - Don't compare
-     * 1 - All UUID
-     * @private
-     */
-    private readonly idLvl: number;
-
-    /**
      * Compare Options
      * @private
      */
-    private readonly options: ICompareOptions;
+    private readonly options: CompareOptions;
 
-    constructor(options?: ICompareOptions) {
+    constructor(options?: CompareOptions) {
         if (options) {
-            this.propLvl = options.propLvl;
-            this.childLvl = options.childLvl;
-            this.eventLvl = options.eventLvl;
-            this.idLvl = options.idLvl;
+            this.options = options;
         } else {
-            this.propLvl = 2;
-            this.childLvl = 2;
-            this.eventLvl = 1;
-            this.idLvl = 1;
-        }
-        this.options = {
-            propLvl: this.propLvl,
-            childLvl: this.childLvl,
-            eventLvl: this.eventLvl,
-            idLvl: this.idLvl,
+            this.options = new CompareOptions(
+                IPropertiesLvl.All,
+                IChildrenLvl.All,
+                IEventsLvl.All,
+                IIdLvl.All,
+                IKeyLvl.Default,
+                IRefLvl.Default,
+                null
+            );
         }
     }
 
@@ -540,7 +502,7 @@ export class ToolComparator {
      * @public
      * @static
      */
-    public static async createModelById(toolId: string, options: ICompareOptions): Promise<ToolModel> {
+    public static async createModelById(toolId: string, options: CompareOptions): Promise<ToolModel> {
         //Tool
         const tool = await DatabaseServer.getToolById(toolId);
 

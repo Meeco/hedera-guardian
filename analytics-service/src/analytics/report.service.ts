@@ -2,41 +2,67 @@ import { DataBaseHelper, Logger, MessageAction } from '@guardian/common';
 import { GenerateUUIDv4 } from '@guardian/interfaces';
 import JSZip from 'jszip';
 import xl from 'excel4node';
-import { AnalyticsStatus as Status } from '@entity/analytics-status';
-import { AnalyticsUser as User } from '@entity/analytics-user';
-import { AnalyticsPolicy as Policy } from '@entity/analytics-policy';
-import { AnalyticsPolicyInstance as PolicyInstance } from '@entity/analytics-policy-instance';
-import { AnalyticsTopicCache as TopicCache } from '@entity/analytics-topic-cache';
-import { AnalyticsDocument as Document } from '@entity/analytics-document';
-import { AnalyticsModule as Module } from '@entity/analytics-module';
-import { AnalyticsToken as Token } from '@entity/analytics-token';
-import { AnalyticsTokenCache as TokenCache } from '@entity/analytics-token-cache';
-import { AnalyticsTopic as Topic } from '@entity/analytics-topic';
-import { AnalyticsSchema as Schema } from '@entity/analytics-schema';
-import { AnalyticsTag as Tag } from '@entity/analytics-tag';
-import { AnalyticsDashboard as Dashboard } from '@entity/analytics-dashboard';
-import { ReportSteep } from '@interfaces/report-steep.type';
-import { ReportStatus } from '@interfaces/report-status.type';
-import { UserType } from '@interfaces/user.type';
-import { ReportType } from '@interfaces/report.type';
-import { DocumentType } from '@interfaces/document.type';
-import { AnalyticsUtils } from '@helpers/utils';
-import { Table } from '@helpers/table';
-import { AnalyticsTokenService } from './token.service';
-import { AnalyticsDocumentService } from './document.service';
-import { AnalyticsUserService } from './user.service';
-import { AnalyticsPolicyService } from './policy.service';
+import { AnalyticsStatus as Status } from '../entity/analytics-status.js';
+import { AnalyticsUser as User } from '../entity/analytics-user.js';
+import { AnalyticsPolicy as Policy } from '../entity/analytics-policy.js';
+import { AnalyticsPolicyInstance as PolicyInstance } from '../entity/analytics-policy-instance.js';
+import { AnalyticsTopicCache as TopicCache } from '../entity/analytics-topic-cache.js';
+import { AnalyticsDocument as Document } from '../entity/analytics-document.js';
+import { AnalyticsModule as Module } from '../entity/analytics-module.js';
+import { AnalyticsToken as Token } from '../entity/analytics-token.js';
+import { AnalyticsTokenCache as TokenCache } from '../entity/analytics-token-cache.js';
+import { AnalyticsTopic as Topic } from '../entity/analytics-topic.js';
+import { AnalyticsSchema as Schema } from '../entity/analytics-schema.js';
+import { AnalyticsTag as Tag } from '../entity/analytics-tag.js';
+import { AnalyticsDashboard as Dashboard } from '../entity/analytics-dashboard.js';
+import { ReportSteep } from '../interfaces/report-steep.type.js';
+import { ReportStatus } from '../interfaces/report-status.type.js';
+import { UserType } from '../interfaces/user.type.js';
+import { ReportType } from '../interfaces/report.type.js';
+import { DocumentType } from '../interfaces/document.type.js';
+import { AnalyticsUtils } from '../helpers/utils.js';
+import { Table } from '../helpers/table.js';
+import { AnalyticsTokenService } from './token.service.js';
+import { AnalyticsDocumentService } from './document.service.js';
+import { AnalyticsUserService } from './user.service.js';
+import { AnalyticsPolicyService } from './policy.service.js';
+import moment from 'moment';
 
 /**
  * Report service
  */
 export class ReportService {
     /**
+     * Get root topic id
+     */
+    public static getRootTopic(): string {
+        return process.env.INITIALIZATION_TOPIC_ID;
+    }
+
+    /**
+     * Get root topic id
+     */
+    public static getRestartDate(): Date {
+        let restartDate: Date = new Date(0);
+        if (process.env.RESTART_DATE) {
+            const _moment = moment(process.env.RESTART_DATE, 'yyyy-MM-dd');
+            if (_moment.isValid()) {
+                restartDate = _moment.toDate();
+            }
+        }
+        return restartDate;
+    }
+
+    /**
      * Create report if need
      * @param root
+     * @param restartDate
      */
-    public static async init(root: string): Promise<void> {
-        const report = await new DataBaseHelper(Status).findOne({ root });
+    public static async init(root: string, restartDate: Date): Promise<void> {
+        const report = await new DataBaseHelper(Status).findOne({
+            root,
+            createDate: { $gt: restartDate }
+        });
         if (!report) {
             const row = new DataBaseHelper(Status).create({
                 uuid: GenerateUUIDv4(),
@@ -52,12 +78,16 @@ export class ReportService {
     /**
      * Reset report status
      * @param root
+     * @param restartDate
      */
-    public static async restart(root: string): Promise<Status> {
-        const report = await new DataBaseHelper(Status).findOne({ root });
+    public static async restart(root: string, restartDate: Date): Promise<Status> {
+        const report = await new DataBaseHelper(Status).findOne({
+            root,
+            createDate: { $gt: restartDate }
+        });
         if (report && report.status !== ReportStatus.FINISHED) {
             await AnalyticsUtils.updateStatus(report, null, ReportStatus.NONE);
-            return await ReportService.run(process.env.INITIALIZATION_TOPIC_ID);
+            return await ReportService.run(root, restartDate);
         }
         return null;
     }
@@ -65,10 +95,13 @@ export class ReportService {
     /**
      * Update report
      * @param root
-     * @param skip
+     * @param restartDate
      */
-    public static async run(root: string): Promise<Status> {
-        const report = await new DataBaseHelper(Status).findOne({ root });
+    public static async run(root: string, restartDate: Date): Promise<Status> {
+        const report = await new DataBaseHelper(Status).findOne({
+            root,
+            createDate: { $gt: restartDate }
+        });
 
         if (!report) {
             new Logger().error(`Report does not exist`, ['ANALYTICS_SERVICE']);
@@ -570,10 +603,16 @@ export class ReportService {
 
     /**
      * Get current report
+     * @param root
+     * @param restartDate
      */
-    public static async getCurrentReport(): Promise<Status> {
+    public static async getCurrentReport(
+        root: string,
+        restartDate: Date
+    ): Promise<Status> {
         return await new DataBaseHelper(Status).findOne({
-            root: process.env.INITIALIZATION_TOPIC_ID
+            root,
+            createDate: { $gt: restartDate }
         });
     }
 

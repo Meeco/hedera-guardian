@@ -8,6 +8,7 @@ import { animate, state, style, transition, trigger } from '@angular/animations'
 import { WebSocketService } from 'src/app/services/web-socket.service';
 import { VCViewerDialog } from 'src/app/modules/schema-engine/vc-dialog/vc-dialog.component';
 import { ViewerDialog } from '../../../helpers/viewer-dialog/viewer-dialog.component';
+import { DialogService } from 'primeng/dynamicdialog';
 
 /**
  * Component for display block of 'interfaceDocumentsSource' types.
@@ -15,7 +16,7 @@ import { ViewerDialog } from '../../../helpers/viewer-dialog/viewer-dialog.compo
 @Component({
     selector: 'documents-source-block',
     templateUrl: './documents-source-block.component.html',
-    styleUrls: ['./documents-source-block.component.css'],
+    styleUrls: ['./documents-source-block.component.scss'],
     animations: [
         trigger('statusExpand', [
             state('collapsed', style({ height: '0px', minHeight: '0' })),
@@ -28,6 +29,7 @@ export class DocumentsSourceBlockComponent implements OnInit {
     @Input('id') id!: string;
     @Input('policyId') policyId!: string;
     @Input('static') static!: any;
+    @Input('dryRun') dryRun!: any;
 
     isActive = false;
     loading: boolean = true;
@@ -54,7 +56,8 @@ export class DocumentsSourceBlockComponent implements OnInit {
         private policyEngineService: PolicyEngineService,
         private wsService: WebSocketService,
         private policyHelper: PolicyHelper,
-        private dialog: MatDialog
+        private dialog: MatDialog,
+        private dialogService: DialogService,
     ) {
         this.fields = [];
         this.columns = [];
@@ -163,7 +166,7 @@ export class DocumentsSourceBlockComponent implements OnInit {
             return;
         }
         for (const doc of documents) {
-            if (doc.history) {
+            if (Array.isArray(doc.history)) {
                 doc.history = doc.history
                     .map((item: any) =>
                         Object.assign(item, {
@@ -178,6 +181,9 @@ export class DocumentsSourceBlockComponent implements OnInit {
                             created: (item.created as Date).toLocaleString(),
                         })
                     );
+            }
+            if (Array.isArray(doc.serials)) {
+                doc.serials.sort((a: any, b: any) => a < b ? -1 : 1);
             }
         }
     }
@@ -206,14 +212,16 @@ export class DocumentsSourceBlockComponent implements OnInit {
                     title: field.dialogContent,
                     block: field._block,
                     static: this.getConfig(row, field, field._block),
-                    policyId: this.policyId
+                    policyId: this.policyId,
+                    dryRun: this.dryRun
                 }
             });
             dialogRef.afterClosed().subscribe(async (result) => { });
         } else {
-            const dialogRef = this.dialog.open(VCViewerDialog, {
+            const dialogRef = this.dialogService.open(VCViewerDialog, {
+                header: field.dialogContent,
                 width: '850px',
-                panelClass: 'g-dialog',
+                styleClass: 'custom-dialog',
                 data: {
                     id: row.id,
                     dryRun: !!row.dryRunId,
@@ -222,9 +230,9 @@ export class DocumentsSourceBlockComponent implements OnInit {
                     type: 'VC',
                     viewDocument: true
                 },
-                disableClose: true,
             });
-            dialogRef.afterClosed().subscribe(async (result) => { });
+            dialogRef.onClose.subscribe(async (result) => {
+            });
         }
     }
 
@@ -298,25 +306,29 @@ export class DocumentsSourceBlockComponent implements OnInit {
         return null;
     }
 
-    getSerials(row: any, field: any) {
+    getArray(row: any, field: any) {
         try {
             if (field.content) {
                 return field.content;
             }
-            const result = [];
-            if (row.serials) {
-                if (Array.isArray(row.serials)) {
-                    for (const serial of row.serials) {
-                        result.push()
+            if (field.names) {
+                let d = row[field.names[0]];
+                for (let i = 1; i < field.names.length; i++) {
+                    const name = field.names[i];
+                    if (name === 'L' && Array.isArray(d)) {
+                        d = d[d.length - 1];
+                    } else {
+                        d = d[name];
                     }
                 }
+                return d;
+            } else {
+                return row[field.name];
             }
-
         } catch (error) {
             return [];
         }
     }
-
 
     getObjectValue(data: any, value: any) {
         let result: any = null;
@@ -351,9 +363,11 @@ export class DocumentsSourceBlockComponent implements OnInit {
         event.preventDefault();
         event.stopPropagation();
         const text = this.getText(row, field);
-        const dialogRef = this.dialog.open(VCViewerDialog, {
+        const dialogRef = this.dialogService.open(VCViewerDialog, {
             width: '850px',
-            panelClass: 'g-dialog',
+            closable: true,
+            header: 'Text',
+            styleClass: 'custom-dialog',
             data: {
                 id: row.id,
                 dryRun: !!row.dryRunId,
@@ -363,21 +377,23 @@ export class DocumentsSourceBlockComponent implements OnInit {
                 viewDocument: false
             }
         });
-        dialogRef.afterClosed().subscribe(async (result) => { });
+        dialogRef.onClose.subscribe(async (result) => {
+        });
     }
 
     onSerials(event: MouseEvent, row: any, field: any) {
         event.preventDefault();
         event.stopPropagation();
         const links = [];
-        if (row.serials) {
-            for (const serial of row.serials) {
+        const serials = this.getArray(row, field);
+        if (serials) {
+            for (const serial of serials) {
                 links.push({
                     type: "tokens",
-                    params: row.tokenId,
+                    params: serial.tokenId,
                     subType: "serials",
-                    subParams: serial,
-                    value: `${row.tokenId} / ${serial}`
+                    subParams: serial.serial,
+                    value: `${serial.tokenId} / ${serial.serial}`
                 })
             }
         }

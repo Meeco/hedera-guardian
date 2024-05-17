@@ -1,5 +1,10 @@
 # 💻 Tools using UI
 
+1. [Step By Step Process](tools-using-ui.md#id-1.-step-by-step-process)
+2. [Demo Video](tools-using-ui.md#id-2.-demo-video)
+
+## 1. Step By Step Process
+
 ## 1. Managing Tools
 
 Tools page (in the Policies section) provides facilities to manage Tools and create new ones.
@@ -47,7 +52,11 @@ Tools that have not been published can only be edited.
 
 <figure><img src="../../../../.gitbook/assets/image (319).png" alt=""><figcaption></figcaption></figure>
 
+### 1.6 Changing Tools
 
+While importing tool via file, or policy via file or IPFS, you can change used tools in preview dialog, it will change tools references in schemas and config automatically.
+
+<figure><img src="../../../../.gitbook/assets/image (588).png" alt=""><figcaption></figcaption></figure>
 
 ## 2. Schemas
 
@@ -108,3 +117,7 @@ Similarly, Input/Output Events variables are external interfaces for events. It 
 Tools can be added to the Policy similarly to Module and/or Blocks.
 
 <figure><img src="../../../../.gitbook/assets/image (327).png" alt=""><figcaption></figcaption></figure>
+
+## 2. Demo Video
+
+[Youtube](https://youtu.be/L0L0Kd7vkkU?si=4oB\_YnRq7cOV4BMR\&t=110)

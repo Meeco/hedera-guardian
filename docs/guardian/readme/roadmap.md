@@ -1,124 +1,10 @@
-# 🛣 Roadmap
+# 🛣️ Roadmap
 
 To get more information on Roadmap, please click: [https://app.zenhub.com/workspaces/guardian-618c27c08661c0001461263a/roadmap?invite=true](https://app.zenhub.com/workspaces/guardian-618c27c08661c0001461263a/roadmap?invite=true)
 
-## ---- August 2023----
+## ---- January 2024----
 
-### Restore (DR) of user accounts and encrypted documents
-
-* An approach to storing/managing all the keys outside Guardian - in the escrow service or just as a back-up. Export/import tooling.
-* Capability to restore user accounts and their associated keys such as to replicate guardian installation
-* Guardian restore functionality should use whatever information is available to it to restore its original setup, specifically when user accounts have been restored it should result in the decryption and thus accessibility of the encrypted documents.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/1814](https://github.com/hashgraph/guardian/issues/1814)
-
-### CDM's AMS-III.D. Methodology
-
-* Design schemas for AMS-III.D. methodology, create PowerPoint presentation, and conduct webinar.
-*   Schemas will also be designed for the following tools:
-
-    * Tool 03 - Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
-    * Tool 05 - Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
-    * Tool 06 - Project emissions from flaring
-    * Tool 16 - Project and leakage emissions from anaerobic digesters
-
-    Referral Link : [https://github.com/hashgraph/guardian/issues/2307](https://github.com/hashgraph/guardian/issues/2307)
-
-### Avery Dennison RFID Inlay GHGP Product Policy (Cradle-To-Gate)
-
-* Expand the Guardian policy to include all applicable supply chain stages.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2306](https://github.com/hashgraph/guardian/issues/2306)
-
-## ---- September 2023----
-
-### Evolution of policy differentiation
-
-* Add comparison of document schemas associated with the policies
-* Implement the ability fro Guardian to compare policies without importing them into Guardian (i.e. without it appearing in the various grids etc).
-*   Allow for mass-comparison of policies such that a user should be able to search for policies 'similar' to 'different' to some other policy based on some similarity threshold.
-
-    * Ability to pre-process policies creating some data structures (hashes?) to enable more efficient comparison with other policies in the future
-
-    Referral Link : [https://github.com/hashgraph/guardian/issues/1793](https://github.com/hashgraph/guardian/issues/1793)
-
-## GHGP Corporate Standard Policy V2
-
-The VVB role and corresponding workflow steps should be incorporated in the current version of GHGP policy as an optional role and optional workflow blocks. The workflow steps to be included (as optional) are the VVB verifying data sources and/or the VVB verifying the GHG inventory/calculations. The organization should be able to choose either or both the steps. The process step for Registry approving/rejecting GHG sources should be removed and a process step for Registry to approve the issuance of tokens should be added.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/](https://github.com/hashgraph/guardian/issues/1666)[2571](https://github.com/hashgraph/guardian/issues/2571)
-
-## UNFCCC 'Tools' as a high-level abstraction/component in Guardian policies
-
-Introduce 'Tools' concept as a 'first-class' citizen of Guardian policies such that policy authors can 'just' re-use Tools (without any modification), linking them together and mixing with custom policy blocks etc in a policy to deliver a seamless onboarding experience for environment projects managed by non-technical individuals.
-
-'Tools' should have the following properties:
-
-* contain schemas for VCs, logic (including especially calculation block and if-then-else capability) and be able to 'consume' and 'produce' multiple VC documents
-* be shareable and re-useable across instances and within an instace
-* be signed and immutable in the sense that they don't requite any modification to be included/used in a policy
-* should be able to 'include' other Tools, i.e. Tools can be nested into other tools to reflect e.g. the relationship between [Tool 14](https://cdm.unfccc.int/methodologies/PAmethodologies/tools/am-tool-14-v2.pdf) (a container) and [Tool 3](https://cdm.unfccc.int/methodologies/PAmethodologies/tools/am-tool-03-v3.pdf) (embedded in T14)
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2630](https://github.com/hashgraph/guardian/issues/2630)
-
-## Project data comparison as produced/captured by policies
-
-Introduce the capability to compare artefacts of the same or different policies:
-
-* VC and VP documents produced by the policy individually and as part of the trust chain comparison
-* tokens and their entire trust chains
-
-The comparison should result in a simple numeric indicator on the similarity of the compared items (i.e. 75% compatible), and other indicators such as 'trust chain A has 15% more elements than trust chain B' helping users to draw conclusion on the relative standing or 'quality' of the corresponding compared items.
-
-Referral Link: [https://github.com/hashgraph/guardian/issues/2375](https://github.com/hashgraph/guardian/issues/2375)
-
-## ---- October 2023----
-
-### Contract-based delegation for token retirement operations
-
-Implement an enhancement for the token creation and retirement operation essentially creating contract-managed ACL list of delegate (contract) accounts which can retire tokens. The idea is as follows:
-
-* An SR deploys a smart contract which will be the creator/destroyer of tokens of a particular type. This means that the 'burn' and/or 'wipe' key for the token would belong to this smart contract. The SR adds this key as the wipe key to the token 'definition'.
-* This smart contract contains a provision for keeping a map of (contract) account addresses to tokens it controls.
-* Each of the 3rd party 'exchange' contract, for each pair, requests an authorization from the 'Manager' smart contracts for performing retirement operations.
-* When/if the SR approves such request the 'exchange' smart contract's address gets added tot he 'authorized' map of address-token pairs.
-* From this point this 'exchange' smart contract can call 'retire' method on the 'Manager' smart contract, the latter checks if the caller's address is in the 'authorized' list and then performs the requested action.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2011](https://github.com/hashgraph/guardian/issues/2011)
-
-### AMS-III.BB. Webinar
-
-* Design schemas for AMS-III.BB. methodology, create PowerPoint presentation, and conduct webinar.
-* Schemas will also be designed for the following tools:
-  * Tool 07 - Tool to calculate the emission factor for an electricity system
-  * Tool 21 - Demonstration of additionality of small-scale project activities
-  * Tool 33 - Default values for common parameters
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2308](https://github.com/hashgraph/guardian/issues/2308)
-
-### Block and policy discoverability/search
-
-* Introduce a capability into Guardian where a user can search, directly from the editor, examples of the usage of specific blocks
-* The search scope should be inside a Guardian instance and, additionally, further through all published policies
-* Uses should be able to preview the usage of the block without having to import policy into their Guardian instance
-*   There should be additional filters in the UI that would allow users to restrict the scope of the search based on:
-
-    * date range
-    * SR (list)
-    * Presence/absence of tags and their scoring (e.g. 'minimum 50 thumbs-up tags')
-    * name
-
-    Referral Link : [https://github.com/hashgraph/guardian/issues/2281](https://github.com/hashgraph/guardian/issues/2281)
-
-### Verra VM0044 Webinar
-
-Design and develop schemas for the VM0044 methodology, create a PowerPoint presentation, and conduct webinar.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2309](https://github.com/hashgraph/guardian/issues/2309)
-
-## ---- November 2023----
-
-## Enhancement by adding new features
+## UI upgrade, AI search and project comparison
 
 1. Improving Guardian UI by adding more UI elements and also adding more colorful headers which can be customized.
 2. Creating a static landing page which will have capability of performing project comparison within same instance using different parameters such as scale size, sectoral scopes, etc.
@@ -126,84 +12,13 @@ Referral Link : [https://github.com/hashgraph/guardian/issues/2309](https://gith
 4. Implementing Guider Search for allowing project developers to search policies using different parameters within same instance.
 5. Implementation of property field when schema is created, which will be used for standardizing as per IWA specification.
 
-Referral Link : [https://github.com/hashgraph/guardian/issues/2850](https://github.com/hashgraph/guardian/issues/2850)
+Referral Link: [https://github.com/hashgraph/guardian/issues/2850](https://github.com/hashgraph/guardian/issues/2850)
 
-## Development of CDM AMS-III - AR policy with Tools
+Documentation Link :&#x20;
 
-Development of the policy with all details mentioned in the design schema.\
-Tools involved in this policy also needs to be developed. The tools are listed below:
+{% embed url="https://docs.hedera.com/guardian/guardian/users/ai-search" %}
 
-1. Tool 07- Tool to calculate the emission factor for an electricity system
-2. Tool 19- Demonstration of additionality of microscale project activities
-3. Tool 21- Demonstration of additionality of small-scale project activities 
-4. Tool 33- Default values for common parameters
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2765](https://github.com/hashgraph/guardian/issues/2765)
-
-## Development of AMS-II.G with Tools
-
-Development of the policy with all details mentioned in the design schema.\
-Tools involved in this policy also needs to be developed. The tools are listed below:
-
-1. Tool 30- Calculation of the fraction of non-renewable biomass
-2. Tool 19- Demonstration of additionality of microscale project activities
-3. Tool 21- Demonstration of additionality of small-scale project activities 
-4. Tool 33- Default values for common parameters
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2766](https://github.com/hashgraph/guardian/issues/2766)
-
-## Development of CDM's AMS-III.D. with Tools
-
-Development of the policy with all details mentioned in the design schema.\
-Tools involved in this policy also needs to be developed. The tools are listed below:
-
-1. Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
-2. Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
-3. Tool 06- Project emissions from flaring
-4. Tool 14- Project and leakage emissions from anaerobic digesters
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2767](https://github.com/hashgraph/guardian/issues/2767)
-
-## PWRM0001 Plastic Waste Collection Methodology, v1.1 - Webinar
-
-Design and develop schemas for the Plastic Waste Collection methodology, create a PowerPoint presentation, and conduct webinar.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2311](https://github.com/hashgraph/guardian/issues/2311)
-
-### Supply Chain and Macro Dynamics
-
-Investigate and determine the rules that will govern supply chain and macro dynamics of a decentralized GHG data ecosystem. Key questions include but are not limited to:
-
-* How will the use of offsets and RECs influence upstream and downstream emissions?
-* How will the emissions of material inputs and intermediate products impact the emissions of final products?
-* How will the emissions of final products impact scope 3 emissions of downstream customers?
-* How can supply chain actors better coordinate data, approaches, and methodologies of emissions that are from the same source, but different scopes and categories throughout supply chains and product life cycles?
-* How can emissions be properly categorized, calculated, and allocated in a way that avoids double and under counting?
-* As emissions are measured and calculated in real-time, how can corresponding inventories be updated?
-* How can inventories be updated to reflect dynamic changes to supply chains and corporate structures?
-
-Identify and implement new Guardian features that facilitate the necessary supply chain and macro-dynamics.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2012](https://github.com/hashgraph/guardian/issues/2012)
-
-## ---- December 2023----
-
-### Policy equivalence assessment based on their execution results for the same data
-
-* Introduce the capability into the Guardian codebase to easily run 'test dataset' on a policy instance such that the results of the 'run' are also captured, saved and can be compared between runs. Such test runs should not have effect on the external persistent storage (Hedera, IPFS), i.e. this should be performed in the 'test-run' mode.
-* Introduce the capability to capture the 'input' into the policy during its execution, in both the 'test-run' and the production operation mode. The 'input' should be saved into the DB, from which it can then be used for running the policy test as per above.
-* It should be possible to export saved inputs and results.
-* Replay the trust chain for an asset based on the public sources and see if the results (the issued assets) would've been the same.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/1886](https://github.com/hashgraph/guardian/issues/1886)
-
-### Verra VM0041 Webinar
-
-Design schemas for the VM0041 methodology, create a PowerPoint presentation, and conduct webinar.
-
-Referral Link : [https://github.com/hashgraph/guardian/issues/2312](https://github.com/hashgraph/guardian/issues/2312)
-
-## ---- January 2024----
+{% embed url="https://docs.hedera.com/guardian/guardian/users/guided-search-of-methodologies" %}
 
 ### Implement discontinuing policy workflow
 
@@ -216,6 +31,8 @@ Implement the policy deprecation workflow which includes:
 
 Referral Link : [https://github.com/hashgraph/guardian/issues/2030](https://github.com/hashgraph/guardian/issues/2030)
 
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/discontinuing-policy-workflow](https://docs.hedera.com/guardian/guardian/standard-registry/discontinuing-policy-workflow)
+
 ### Gold Standard’s Carbon Sequestration through Accelerated Carbonation of Concrete Aggregate Webinar
 
 * Design schemas for the Carbon Sequestration through Accelerated Carbonation of Concrete Aggregate methodology, create a PowerPoint presentation, and conduct webinar.
@@ -223,17 +40,356 @@ Referral Link : [https://github.com/hashgraph/guardian/issues/2030](https://gith
 
 Referral Link : [https://github.com/hashgraph/guardian/issues/2321](https://github.com/hashgraph/guardian/issues/2321)
 
-### Business User Policy Development Feature
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/gold-standard-carbon-sequestration-through-accelerated-carbonation-of-concrete-aggregate](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/gold-standard-carbon-sequestration-through-accelerated-carbonation-of-concrete-aggregate)
 
-Business Analyst and Sustainability Consultants generally are less technical than developers. Although JSON is the most functional way to construct Guardian Policies, there may be more formal ways to integrate traditional business tool and rules validation capabilities to automatically compile policies.
+### Business User Policy Development Feature - schemas MVP
+
+* Create a excel 'schema representation' standard suitable for non-technical users. _Note: use existing excel schemas from Tools and UNFCCC initiatives as guidance._
+* Create an explicit template for the above, downloadable from Guardian UI, which users can take and update/change to develop new schemas.
+* Create an Export/Import UI and tooling which would allow seamless transformation of schemas written in Excel into valid Guardian JSON schemas and vice versa
+* Ensure manual interventions are possible for corrections/adjustments of complex formulas and other issues.
 
 Referral Link : [https://github.com/hashgraph/guardian/issues/1885](https://github.com/hashgraph/guardian/issues/1885)
 
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/import-export-in-excel](https://docs.hedera.com/guardian/guardian/standard-registry/import-export-in-excel)
+
 ### Geographic raster imagery support in Guardian
 
-Introduce support for getTIFF and other raster types of data.
+Introduce support for geoTIFF and other raster types of data such that:
+
+* Guardian documents (i.e. in schemas) can reference raster data (in geoTIFF and other common formats) which are located on external (3rd party) systems.
+* Guardian UI can display raster images and their georeferencing data when they are encountered in documents.
+* Guardian policy can access and manipulate (use in calculations, etc) data from raster sources.
 
 Referral Link : [https://github.com/hashgraph/guardian/issues/1930](https://github.com/hashgraph/guardian/issues/1930)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/schemas/creating-system-schema-using-ui](https://docs.hedera.com/guardian/guardian/standard-registry/schemas/creating-system-schema-using-ui)
+
+### Development of ACM0007: Conversion from Single Cycle to Combined Cycle Power Generation
+
+Designing of the Schema and getting it approved. Development of the policy using Schema Development of all the tools involved in the policy:
+
+* Tool 02- Combined tool to identify the baseline scenario and demonstrate additionality
+* Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+* Tool 07- Tool to calculate the emission factor for an electricity system
+* Tool 10- Tool to determine the remaining lifetime of equipment
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2883](https://github.com/hashgraph/guardian/issues/2883)
+
+Documentation Link :  [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0007-conversion-from-single-cycle-to-combined-cycle-power-generation](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0007-conversion-from-single-cycle-to-combined-cycle-power-generation)
+
+## ---- February 2024----
+
+### Support externally controlled DIDs with keys in Guardian
+
+Introduce a workflow into the Guardian where a DID Controller would introduce a dedicated verification method into the main DID for which the private key would be stored and managed by a Guardian instance. This way Guardian would only be able to control the specific verification method's key, but not the rest of the DID.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2678](https://github.com/hashgraph/guardian/issues/2678)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/bring-your-own-dids](https://docs.hedera.com/guardian/guardian/standard-registry/bring-your-own-dids)
+
+### Development of AMS-I.D: Grid Connected Renewable Electricity Generation – v.18.0
+
+Designing of the Schema and getting it approved.\
+Development of the policy using Schema\
+Development of all the tool involved in the policy
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2919](https://github.com/hashgraph/guardian/issues/2919)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/ams-i.d-grid-connected-renewable-electricity-generation-v.18.0](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/ams-i.d-grid-connected-renewable-electricity-generation-v.18.0)
+
+### Mitigation Credits Research
+
+Introduce the ability to mint Mitigation Asset Type tokens as the result of the calculation of the diff between planned (and reported on the Environmental) and actual results of the calculations based on the MRV data for a reporting period. This would likely require:
+
+* New type of blocks in the policy definition language specifying 'target' numbers.
+* Policy Engine ability to mint different types of tokens depending on the conditions
+* Needs to be linked with [GHG scorecards Research #1017](https://github.com/hashgraph/guardian/issues/1017) logic
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/54](https://github.com/hashgraph/guardian/issues/54)
+
+### Development of AMS-II.J.: Demand-Side Activities for Efficient Lighting Technologies
+
+1. Designing of the Schema and getting it approved. Development of the policy using Schema
+2. Development of all the tool involved in the policy:
+   * Tool 07- Tool to calculate the emission factor for an electricity system
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2885](https://github.com/hashgraph/guardian/issues/2885)
+
+Documentation Link :  [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-ii.j.-demand-side-activities-for-efficient-lighting-technologies](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-ii.j.-demand-side-activities-for-efficient-lighting-technologies)
+
+### Development of AMS-III.AV.: Low Greenhouse Gas Emitting Safe Drinking Water Production Systems
+
+1. Designing of the Schema and getting it approved.
+2. Development of the policy using Schema
+3. Development of all the tools involved in the policy:
+   * Tool 01- Tool for the demonstration and assessment of additionality
+   * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+   * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+   * Tool 19- Demonstration of additionality of microscale project activities
+   * Tool 21- Demonstration of additionality of small-scale project activities 
+   * Tool 30- Calculation of the fraction of non-renewable biomass
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2880](https://github.com/hashgraph/guardian/issues/2880)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.av.-low-greenhouse-gas-emitting-safe-drinking-water-production-systems](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.av.-low-greenhouse-gas-emitting-safe-drinking-water-production-systems)
+
+## ---- March 2024----
+
+### Development of AMS-III.H.: Methane Recovery in Wastewater Treatment
+
+1. Designing of the Schema and getting it approved. Development of the policy using Schema
+2. Development of all the tools involved in the policy:
+   * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+   * Tool 04- Emissions from solid waste disposal sites
+   * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+   * Tool 06- Project emissions from flaring
+   * Tool 32- Positive lists of technologies
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/2881](https://github.com/hashgraph/guardian/issues/2881)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.h.-methane-recovery-in-wastewater-treatment](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.h.-methane-recovery-in-wastewater-treatment)
+
+## Development of AMS-III.F.: Avoidance of Methane Emissions Through Composting
+
+1. Designing of the Schema and getting it approved.
+2. Development of the policy using Schema
+3. Development of all the tools involved in the policy
+   * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+   * Tool 04- Emissions from solid waste disposal sites
+   * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+   * Tool 13- Project and leakage emissions from composting
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/2876](https://github.com/hashgraph/guardian/issues/2876)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.f.-avoidance-of-methane-emissions-through-composting](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-ams-iii.f.-avoidance-of-methane-emissions-through-composting)
+
+## Development of ACM0002: Grid-Connected Electricity Generation from Renewable Sources
+
+Development of the policy with all details mentioned in the design schema.\
+Tools involved in this policy also needs to be developed. The tools are listed below:
+
+1. Tool 01- Tool for the demonstration and assessment of additionality
+2. Tool 02- Combined tool to identify the baseline scenario and demonstrate additionality
+3. Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+4. Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+5. Tool 07- Tool to calculate the emission factor for an electricity system
+6. Tool 10- Tool to determine the remaining lifetime of equipment
+7. Tool 32- Positive lists of technologies
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/2875](https://github.com/hashgraph/guardian/issues/2875)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0002-grid-connected-electricity-generation-from-renewable-sources](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0002-grid-connected-electricity-generation-from-renewable-sources)
+
+### Conforming to Hedera DID, VC, VP, Standards
+
+Update to memo field VP/DID structure to normalize DID spec with the rest of Hedera DID method work (which will also be updated)
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2211](https://github.com/hashgraph/guardian/issues/2211)
+
+### Development of PWRM0002 Plastic Waste Recycling Methodology, v1.1
+
+Designing of the Schema and getting it approved.&#x20;
+
+Development of the policy using Schema&#x20;
+
+Development of all the tool involved in the policy
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2920](https://github.com/hashgraph/guardian/issues/2920)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/pwrm0002-plastic-waste-recycling](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/pwrm0002-plastic-waste-recycling)
+
+## ---- April 2024----
+
+### DLT to Address Flawed Methodologies Blog
+
+Draft and published a blog post on the topic of DLT as a solution to address poor data quality and flawed emission and carbon credit methodologies.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2906](https://github.com/hashgraph/guardian/issues/2906)
+
+### Live project (data) migration across Policies, across Guardian instances
+
+Implement User Interface (UI) and tooling allowing users to execute multiple cycles of 'export a live project' from a policy and 'import a live project' into another policy. This migration process should work irrespective of the policy versions, standard registries, and Guardian instances, automatically mapping data/documents to the corresponding policy steps in an intelligent way, referring to the Project Developer in situations needing human input via a convenient UI/UX ('User Experience'):
+
+* Project Developer can preview and assess the compatibility of policies and data, and the result of the migration using something analogous to the 'dry-run' mode.
+* For cases where the 'new' schemas and policy steps match perfectly the 'old' valid data/documents from the 'source', the 'old' ones should be automatically accepted into the 'target' policy flow with no human intervention.
+* Project Developer can review and select/guide the matching and the destination of the 'source' data/documents into the new policy flow with full visibility with regard to:
+  * 'source' and 'target' policy structure (side by side), with details of block parameters etc where required.
+  * content of the original and destination documents with field-level granularity
+* Where data needs to be augmented and thus new signatures are required the corresponding Guardian users (e.g. Standard Registry) get requests to sign the data.
+
+The migration process should be automated, and should result in the 'stopped' project/policy execution on the 'source platform' and 'resumed' from the same point in the policy flow on the 'destination' (other) platform, with full data and tokens visibility and provenance provability in the trust chain. The 'old' data and artifacts produced on the 'source' should be fully useable on the 'target', e.g.
+
+* used in reports
+* viewable in the UI
+* data referencable and useable in calculations and other policy actions (such as minting)
+* operations on 'old' tokens are supported in the new policy smart contracts (retirement, exchanges, etc)
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/3176](https://github.com/hashgraph/guardian/issues/3176)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/live-project-data-migration/live-project-data-migration-ui](https://docs.hedera.com/guardian/guardian/standard-registry/live-project-data-migration/live-project-data-migration-ui)
+
+### FireBlocks Raw Signing Integration
+
+We need to integrate FireBlocks , a Key management tool to manage the Keys and secure Guardian. To get complete info on Fireblocks, please look at [https://www.fireblocks.com/](https://www.fireblocks.com/)
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/1314](https://github.com/hashgraph/guardian/issues/1314)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/standard-registry/fireblocks-raw-signing/fireblocks-signing-in-guardian-ui](https://docs.hedera.com/guardian/guardian/standard-registry/fireblocks-raw-signing/fireblocks-signing-in-guardian-ui)
+
+### Development of ACM0001: Flaring or Use of Landfill Gas
+
+1. Designing of the Schema and getting it approved.
+2. Development of the policy using Schema
+3. Development of all the tools involved in the policy:
+   * Tool 02- Combined tool to identify the baseline scenario and demonstrate additionality
+   * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+   * Tool 04- Emissions from solid waste disposal sites
+   * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+   * Tool 06- Project emissions from flaring
+   * Tool 08- Tool to determine the mass flow of a greenhouse gas in a gaseous stream
+   * Tool 09- Determining the baseline efficiency of thermal or electric energy generation systems
+   * Tool 10- Tool to determine the remaining lifetime of equipment
+   * Tool 12- Project and leakage emissions from transportation of freight
+   * Tool 32- Positive lists of technologies
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/2874](https://github.com/hashgraph/guardian/issues/2874)
+
+Documentation Link : [https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0001-flaring-or-use-of-landfill-gas](https://docs.hedera.com/guardian/guardian/demo-guide/carbon-offsets/cdm-acm0001-flaring-or-use-of-landfill-gas)
+
+## ---- May 2024----
+
+## Development of Gold Standard's Methodology for Methane Emission Reduction by Adjusted Water Management Practice in Rice Cultivation
+
+Designing of the Schema and getting it approved.&#x20;
+
+Development of the policy using Schema&#x20;
+
+Development of all the tool involved in the policy
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2921](https://github.com/hashgraph/guardian/issues/2921)
+
+### Full project data comparison as produced/captured by policies
+
+Introduce a comparison functionality where it'd be possible to 'diff' arbitrary sections or the entire trust-chains for different tokens, potentially issued by different policies such that the system would:
+
+* graphically display the differences where a user would then be able to 'scroll' through and review them in the UI
+* get a numerical 'similarity score' indicating how similar the two 'chains' are
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2704](https://github.com/hashgraph/guardian/issues/2704)
+
+### Global environmental/Guardian data search (indexer) component for Hedera and IPFS
+
+* Improve the data storage and indexing capabilities of Guardian for the data belonging to the local instance such that complex analytical queries could be run efficiently, such as 'search for data similar to this' and 'what is the possibility of this being a double entry for something submitted elsewhere'.
+* Introduce a global search and indexing capability for data produce by other (all) instances such that queries above could be run on the entire body of Guardian data produced from the beginning of time (in blockchain sense).
+* Extend [Block and policy discoverability/search #2281](https://github.com/hashgraph/guardian/issues/2281) for users to be able to preview the usage of the block without having to import "other SR's" policy into their Guardian instance
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2629](https://github.com/hashgraph/guardian/issues/2629)
+
+### Revamp Guardian user/roles and permissions model
+
+* Fundamentally separate the concept of users, roles and permissions in Guardian
+* Introduce granular concept of permissions which could be assigned to users, a user could then perform a specific function within the role if its assigned role 'contains' this permission. These should include (but not limited to):
+  * Policy edit/submit for review
+  * Policy view
+  * Policy approval & publish
+* Introduce a "user admin" role, which allows:
+  * defining new roles from permissions
+  * assigning of roles to users
+* Create a permissioning system which verifies actor role before any action has been taken throughout Guardian
+* Package in suitable most-common role set into Guardian so it can be operated immediately 'out of the box' without the need for additional configuration
+* Create a concept of 'delegation' where a user with a particular role/permission can explicitly 'delegate' this role/permission to another user
+* Introduce the functionality to produce a report (page, download) which lists all users and their roles/permissions mapping in the system
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2844](https://github.com/hashgraph/guardian/issues/2844)
+
+### Development of AMS-I.F.: Renewable Electricity Generation for Captive Use and Mini-Grid
+
+1. Designing of the Schema and getting it approved.
+2. Development of the policy using Schema
+3.  Development of all the tools involved in the policy:
+
+    * Tool 01- Tool for the demonstration and assessment of additionality
+    * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+    * Tool 04- Emissions from solid waste disposal sites
+    * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+    * Tool 06- Project emissions from flaring
+    * Tool 12- Project and leakage emissions from transportation of freight
+    * Tool 13- Project and leakage emissions from composting
+    * Tool 14- Project and leakage emissions from anaerobic digesters
+    * Tool 16- Project and leakage emissions from biomass
+    * Tool 33- Default values for common parameters
+
+    Referral Link: [https://github.com/hashgraph/guardian/issues/2882](https://github.com/hashgraph/guardian/issues/2882)
+
+### Development of AMS-I.A.
+
+1. Designing of the Schema and getting it approved.
+2. Development of the policy using Schema
+3. Development of all the tools involved in the policy:
+   * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+   * Tool 16- Project and leakage emissions from biomass
+   * Tool 21- Demonstration of additionality of small-scale project activities 
+   * Tool 33- Default values for common parameters
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/2884](https://github.com/hashgraph/guardian/issues/2884)
+
+### Development of AMS-I.C.: Thermal Energy Production with or Without Electricity
+
+1. Designing the Schema for the methodology
+2. Development of the policy
+3.  Development of all the tools involved in this policy
+
+    * Tool 03- Tool to calculate project or leakage CO2 emissions from fossil fuel combustion
+    * Tool 05- Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation
+    * Tool 06- Project emissions from flaring
+    * Tool 07- Tool to calculate the emission factor for an electricity system
+    * Tool 09- Determining the baseline efficiency of thermal or electric energy generation systems
+    * Tool 12- Project and leakage emissions from transportation of freight
+    * Tool 16- Project and leakage emissions from biomas
+    * Tool 19- Demonstration of additionality of microscale project activities
+    * Tool 21- Demonstration of additionality of small-scale project activities 
+    * Tool 22- Leakage in biomass small-scale project activities
+
+    Referral Link : [https://github.com/hashgraph/guardian/issues/2873](https://github.com/hashgraph/guardian/issues/2873)
+
+## ---- June 2024----
+
+### Development of VMR0006: Energy Efficiency and Fuel Switch Measures in Thermal Applications, v1.2v
+
+Designing of the Schema and getting it approved.&#x20;
+
+Development of the policy using Schema&#x20;
+
+Development of all the tool involved in the policy
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2922](https://github.com/hashgraph/guardian/issues/2922)
+
+### Hedera interactions resilience module
+
+Create a Guardian 'transaction execution' service which would assure orderly transaction execution and their status tracking, and provide intelligent retry and failure recovery functionality such that required transactions would be guaranteed to be asynchronously executed once, and only once, and in the right order.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2905](https://github.com/hashgraph/guardian/issues/2905)
+
+### Further evolution of policy comparison (a.k.a 'mass diff')
+
+Relying on the work done in the course of [#1793](https://github.com/hashgraph/guardian/issues/1793) (i.e. creating data structures (hashes) to enable more efficient comparison), allow for mass-comparison of policies such that a user should be able to search for local policies 'similar' to 'different' to some other policy based on some similarity threshold. This is related (but different) to [#2281](https://github.com/hashgraph/guardian/issues/2281) as it focuses on 'easy diff' vs 'easy search'.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2706](https://github.com/hashgraph/guardian/issues/2706)
+
+### Correction of all the Methodologies with new DID Spec
+
+1. We need to implement and correct all the methodologies added with new DID specification.
+2. Deploy all the methodologies on testnet and create IPFS timestamps.
+3. Test the methodologies with dummy and real data.
+
+Referral Link: [https://github.com/hashgraph/guardian/issues/3296](https://github.com/hashgraph/guardian/issues/3296)
+
+### Guardian Oracle service to verify token trust chain from within Hedera smart contracts
+
+Develop a Guardian 'Oracle' service to produce (at least) a verifiable binary valid/not valid answer for a given token or group of tokens reachable from within the smart contract, which can then form the basis conditional operation inside the smart contract.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/1040](https://github.com/hashgraph/guardian/issues/1040)
 
 ### HBAR GHG Policy Research
 
@@ -243,32 +399,54 @@ Create a Guardian policy that quantifies and reports GHG emissions from HBAR, us
 
 Referral Link : [https://github.com/hashgraph/guardian/issues/1667](https://github.com/hashgraph/guardian/issues/1667)
 
-### Post-minting data enrichment for issued tokens
+## ---- July 2024----
 
-Projects should have ability to enrich the trust-chain of tokens with additional data in the form of VC/VP after the tokens have been created through editable metadata. Diagrammatically this should look like this:
+### Development of AMS-I.E: Switch from Non-Renewable Biomass for Thermal Applications by the User – v.13.0
 
-```scss
-VP1(VC1, VC2) <---- Token
-                  /
-VP2(VC3) <-------/ (edited) 
-```
+Designing of the Schema and getting it approved.&#x20;
 
-Where VP2 (VC3) have been linked to the token after the token have been minted.
+Development of the policy using Schema&#x20;
 
-It should be possible to specify, at minting time, that a particular token instance prohibits adding and/or removing of any information after the creation.
+Development of all the tool involved in the policy
 
-Probably depends on [https://github.com/hashgraph/hedera-improvement-proposal/discussions/607](https://github.com/hashgraph/hedera-improvement-proposal/discussions/607), also visible here: [https://hips.hedera.com/hip/hip-657](https://hips.hedera.com/hip/hip-657)
+Referral Link : [https://github.com/hashgraph/guardian/issues/2923](https://github.com/hashgraph/guardian/issues/2923)
 
-Referral Link : [https://github.com/hashgraph/guardian/issues/1896](https://github.com/hashgraph/guardian/issues/1896)
+### Conform Guardian generated NFTs with HIP412 for better ecosystem-wide compatibility for NFTs and wallets
 
-### FireBlocks/ Meetaco Integration
+1. Define senisble defaults for all NFT Guardian assets that is the minimum implementation of HIP412 ([@mattsmithies](https://github.com/mattsmithies) can advise on tooling or a method to support)
+2. Move the generated of the current metadata to the _"properties"_ field of the [HIP412 Specification](https://hips.hedera.com/hip/hip-412#specification)
+3. Allow marketplaces to change the defaults for their specific needs on the creation of tokens and more importantly the mint of assets.
 
-We need to integrate FireBlocks , a Key management tool to manage the Keys and secure Guardian. To get complete info on Fireblocks, please look at [https://www.fireblocks.com/](https://www.fireblocks.com/)
+Referral Link : [https://github.com/hashgraph/guardian/issues/1672](https://github.com/hashgraph/guardian/issues/1672)
 
-Referral Link : [https://github.com/hashgraph/guardian/issues/1314](https://github.com/hashgraph/guardian/issues/1314)
+### Auto-testing community submitted policies
 
-### Conforming to Hedera DID, VC, VP, Standards
+* Relying on the [Policy equivalence assessment based on their execution results for the same data #1886](https://github.com/hashgraph/guardian/issues/1886) and [Full project data comparison as produced/captured by policies #2704](https://github.com/hashgraph/guardian/issues/2704) introduce capability to automatically and repeatably test policies
+* Introduce a hook into the new policy merge and release build events which triggers execution of the community policies regression test cycle
 
-Update to memo field VP/DID structure to normalize DID spec with the rest of Hedera DID method work (which will also be updated)
+Referral Link : [https://github.com/hashgraph/guardian/issues/2847](https://github.com/hashgraph/guardian/issues/2847)
 
-Referral Link : [https://github.com/hashgraph/guardian/issues/2211](https://github.com/hashgraph/guardian/issues/2211)
+### Code audit: support and resolution of issues
+
+* Define scope and organise code audit and application penetration testing by a reputable 3rd party security firm.
+* Support audit team with Q\&A and setting up environments etc
+* Resolve critical issues found.
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2989](https://github.com/hashgraph/guardian/issues/2989)
+
+### Development of GS Methodology for Emission Reductions from Safe Drinking Water Supply v.1.0
+
+Designing of the Schema and getting it approved.&#x20;
+
+Development of the policy using Schema&#x20;
+
+Development of all the tool involved in the policy
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/2924](https://github.com/hashgraph/guardian/issues/2924)
+
+### GHG scorecards Research
+
+* Identify the KPIs (and the data requirements behind them) to be captured by the Environmental scorecards to best support demand signaling.
+* Identify the business requirements for the Environmental Scorecards, i.e., how they could be used by supply and demand-side actors, markets, etc.?
+
+Referral Link : [https://github.com/hashgraph/guardian/issues/1017](https://github.com/hashgraph/guardian/issues/1017)

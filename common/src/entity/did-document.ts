@@ -6,7 +6,7 @@ import {
     Enum,
     BeforeCreate
 } from '@mikro-orm/core';
-import { BaseEntity } from '../models';
+import { BaseEntity } from '../models/index.js';
 
 /**
  * DID document
@@ -82,6 +82,12 @@ export class DidDocument extends BaseEntity implements IDidObject {
      */
     @Property({ nullable: true })
     relationships?: string[];
+
+    /**
+     * Verification methods
+     */
+    @Property({ nullable: true, type: 'unknown' })
+    verificationMethods?: any;
 
     /**
      * Default document values

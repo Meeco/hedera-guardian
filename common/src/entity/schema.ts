@@ -15,8 +15,8 @@ import {
     BeforeUpdate,
     AfterDelete,
 } from '@mikro-orm/core';
-import { BaseEntity } from '../models';
-import { DataBaseHelper, SchemaConverterUtils } from '../helpers';
+import { BaseEntity } from '../models/index.js';
+import { DataBaseHelper, SchemaConverterUtils } from '../helpers/index.js';
 import { ObjectId } from '@mikro-orm/mongodb';
 
 /**
@@ -173,6 +173,12 @@ export class Schema extends BaseEntity implements ISchema {
      */
     @Property({ nullable: true })
     defs?: string[]
+
+    /**
+     * Errors
+     */
+    @Property({ nullable: true })
+    errors?: any[]
 
     /**
      * Schema defaults

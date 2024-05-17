@@ -1,9 +1,12 @@
 import { GenerateUUIDv4, IRootConfig, ISchema, ModuleStatus, Schema, SchemaCategory, SchemaEntity, SchemaHelper, SchemaStatus, TopicType } from '@guardian/interfaces';
 import path from 'path';
-import { readJSON } from 'fs-extra';
+import fs from 'fs-extra';
+
 import { DatabaseServer, MessageAction, MessageServer, Schema as SchemaCollection, SchemaConverterUtils, SchemaMessage, TopicConfig, TopicHelper, Users, } from '@guardian/common';
-import { INotifier } from '@helpers/notifier';
-import { importTag } from '@api/helpers/tag-import-export-helper';
+import { INotifier } from '../../helpers/notifier.js';
+import { importTag } from '../../api/helpers/tag-import-export-helper.js';
+
+const { readJSON } = fs;
 
 /**
  * Import Result
@@ -279,7 +282,11 @@ export async function updateSchemaDocument(schema: SchemaCollection): Promise<vo
  * @param schemas Schemas
  * @param map Map of updated schemas
  */
-export function fixSchemaDefsOnImport(iri: string, schemas: Schema[], map: any): boolean {
+export function fixSchemaDefsOnImport(
+    iri: string,
+    schemas: Schema[],
+    map: { [x: string]: Schema }
+): boolean {
     if (map[iri]) {
         return true;
     }
@@ -317,7 +324,8 @@ export async function sendSchemaMessage(
 ) {
     const messageServer = new MessageServer(
         root.hederaAccountId,
-        root.hederaAccountKey
+        root.hederaAccountKey,
+        root.signOptions
     );
     const message = new SchemaMessage(action);
     message.setDocument(schema);
@@ -340,11 +348,16 @@ export async function copySchemaAsync(iri: string, topicId: string, name: string
     const users = new Users();
     const root = await users.getHederaAccount(owner);
 
-    let item = await DatabaseServer.getSchema({iri});
+    let item = await DatabaseServer.getSchema({ iri });
 
     const oldSchemaIri = item.iri;
     await copyDefsSchemas(item.document?.$defs, owner, topicId, root);
-    item = await DatabaseServer.getSchema({iri});
+    item = await DatabaseServer.getSchema({ iri });
+
+    let contextURL = null;
+    if (item.contextURL && item.contextURL.startsWith('schema:')) {
+        contextURL = item.contextURL;
+    }
 
     // Clean document
     delete item._id;
@@ -361,6 +374,7 @@ export async function copySchemaAsync(iri: string, topicId: string, name: string
         item.name = name;
     }
     item.uuid = GenerateUUIDv4();
+    item.contextURL = contextURL;
     item.status = SchemaStatus.DRAFT;
     item.topicId = topicId;
 
@@ -418,6 +432,9 @@ export async function createSchemaAndArtifacts(
     newSchema.category = category || SchemaCategory.POLICY;
     newSchema.readonly = false;
     newSchema.system = false;
+    if (newSchema.uuid) {
+        newSchema.contextURL = `schema:${newSchema.uuid}`;
+    }
 
     SchemaHelper.setVersion(newSchema, null, previousVersion);
     const row = await createSchema(newSchema, newSchema.owner, notifier);
@@ -463,7 +480,7 @@ export async function createSchema(
     }
 
     if (!topic && newSchema.topicId !== 'draft') {
-        const topicHelper = new TopicHelper(root.hederaAccountId, root.hederaAccountKey);
+        const topicHelper = new TopicHelper(root.hederaAccountId, root.hederaAccountKey, root.signOptions);
         topic = await topicHelper.create({
             type: TopicType.SchemaTopic,
             name: TopicType.SchemaTopic,
@@ -477,8 +494,10 @@ export async function createSchema(
         await topicHelper.twoWayLink(topic, null, null);
     }
 
+    const errors = SchemaHelper.checkErrors(newSchema as Schema)
     SchemaHelper.updateIRI(schemaObject);
-    schemaObject.status = SchemaStatus.DRAFT;
+    schemaObject.errors = errors;
+    schemaObject.status = errors?.length ? SchemaStatus.ERROR : SchemaStatus.DRAFT;
     schemaObject.topicId = topic?.topicId || 'draft';
     schemaObject.iri = schemaObject.iri || `${schemaObject.uuid}`;
     schemaObject.codeVersion = SchemaConverterUtils.VERSION;
@@ -535,7 +554,7 @@ export async function deleteSchema(schemaId: any, notifier: INotifier) {
     if (!item) {
         throw new Error('Schema not found');
     }
-    if (item.status !== SchemaStatus.DRAFT) {
+    if (item.status !== SchemaStatus.DRAFT && item.status !== SchemaStatus.ERROR) {
         throw new Error('Schema is not in draft status');
     }
 

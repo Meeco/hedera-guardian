@@ -1,9 +1,9 @@
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { IKeyMap } from '../interfaces/key-map.interface';
-import { AnyPropertyModel, ArrayPropertyModel, ObjectPropertyModel, PropertyModel, SchemaPropertyModel, TokenPropertyModel } from './property.model';
-import { PropertyType } from '../types/property.type';
-import { SchemaModel } from './schema.model';
-import { TokenModel } from './token.model';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { IKeyMap } from '../interfaces/key-map.interface.js';
+import { AnyPropertyModel, ArrayPropertyModel, ObjectPropertyModel, PropertyModel, SchemaPropertyModel, TokenPropertyModel } from './property.model.js';
+import { PropertyType } from '../types/property.type.js';
+import { SchemaModel } from './schema.model.js';
+import { TokenModel } from './token.model.js';
 
 /**
  * Properties Model
@@ -28,7 +28,7 @@ export class PropertiesModel {
      * @param options - comparison options
      * @public
      */
-    public hash(options: ICompareOptions): string {
+    public hash(options: CompareOptions): string {
         const result: string[] = [];
         for (const item of this.list) {
             const hash = item.hash(options);
@@ -58,7 +58,7 @@ export class PropertiesModel {
      * @param options - comparison options
      * @public
      */
-    public updateSchemas(schemaMap: IKeyMap<SchemaModel>, options: ICompareOptions): void {
+    public updateSchemas(schemaMap: IKeyMap<SchemaModel>, options: CompareOptions): void {
         for (const prop of this.list) {
             if (prop.type === PropertyType.Schema) {
                 (prop as SchemaPropertyModel).setSchema(schemaMap[prop.value]);
@@ -72,12 +72,20 @@ export class PropertiesModel {
      * @param options - comparison options
      * @public
      */
-    public updateTokens(tokenMap: IKeyMap<TokenModel>, options: ICompareOptions): void {
+    public updateTokens(tokenMap: IKeyMap<TokenModel>, options: CompareOptions): void {
         for (const prop of this.list) {
             if (prop.type === PropertyType.Token) {
                 (prop as TokenPropertyModel).setToken(tokenMap[prop.value]);
             }
         }
+    }
+
+    /**
+     * Convert class to object
+     * @public
+     */
+    public toObject(): any[] {
+        return this.list.map((p) => p.toObject());
     }
 
     /**

@@ -1,6 +1,7 @@
-import { ApiResponse } from '@api/helpers/api-response';
+import { ApiResponse } from '../api/helpers/api-response.js';
 import {
     Contract,
+    ContractMessage,
     DataBaseHelper,
     DatabaseServer,
     KeyType,
@@ -13,6 +14,7 @@ import {
     RetirePool,
     RetireRequest,
     Schema as SchemaCollection,
+    Topic,
     TopicConfig,
     TopicHelper,
     Users,
@@ -20,30 +22,15 @@ import {
     VcDocument as VcDocumentCollection,
     VcHelper,
     VCMessage,
-    ContractMessage,
     Wallet,
     WiperRequest,
     Workers,
-    Topic,
 } from '@guardian/common';
-import {
-    ContractParamType,
-    ContractType,
-    ContractAPI,
-    Schema,
-    SchemaEntity,
-    SchemaHelper,
-    TopicType,
-    WorkerTaskType,
-    UserRole,
-    RetireTokenPool,
-    RetireTokenRequest,
-    TokenType,
-} from '@guardian/interfaces';
-import { publishSystemSchema } from './helpers/schema-publish-helper';
+import { ContractAPI, ContractParamType, ContractType, RetireTokenPool, RetireTokenRequest, Schema, SchemaEntity, SchemaHelper, TokenType, TopicType, UserRole, WorkerTaskType, } from '@guardian/interfaces';
 import { AccountId, TokenId } from '@hashgraph/sdk';
 import { proto } from '@hashgraph/proto';
 import * as ethers from 'ethers';
+import { contractCall, contractQuery, createContract, customContractCall, publishSystemSchema, } from './helpers/index.js';
 
 const retireAbi = new ethers.Interface([
     'function retire(tuple(address, int64, int64[])[])',
@@ -229,7 +216,7 @@ async function setContractWiperPermissions(
     );
 }
 
-async function setPoolContract(
+export async function setPoolContract(
     workers: Workers,
     contractId: string,
     hederaAccountId: string,
@@ -237,24 +224,19 @@ async function setPoolContract(
     tokens: RetireTokenPool[],
     immediately: boolean = false
 ) {
-    return await workers.addNonRetryableTask(
-        {
-            type: WorkerTaskType.CUSTOM_CONTRACT_CALL,
-            data: {
-                contractId,
-                hederaAccountId,
-                hederaAccountKey,
-                gas: 1000000,
-                parameters: retireAbi.encodeFunctionData('setPool', [
-                    tokens.map((token) => [
-                        TokenId.fromString(token.token).toSolidityAddress(),
-                        token.count,
-                    ]),
-                    immediately,
-                ]),
-            },
-        },
-        20
+    return await customContractCall(
+        ContractAPI.SET_RETIRE_POOLS,
+        workers,
+        contractId,
+        hederaAccountId,
+        hederaAccountKey,
+        retireAbi.encodeFunctionData('setPool', [
+            tokens.map((token) => [
+                TokenId.fromString(token.token).toSolidityAddress(),
+                token.count,
+            ]),
+            immediately,
+        ])
     );
 }
 
@@ -325,7 +307,7 @@ export async function syncWipeContracts(
     const contracts = await contractRepository.find(
         {
             type: ContractType.WIPE,
-            syncDisabled: { $ne: true }
+            syncDisabled: { $ne: true },
         },
         {
             fields: ['contractId', 'lastSyncEventTimeStamp'],
@@ -521,7 +503,7 @@ export async function syncRetireContracts(
     const contracts = await contractRepository.find(
         {
             type: ContractType.RETIRE,
-            syncDisabled: { $ne: true }
+            syncDisabled: { $ne: true },
         },
         {
             fields: ['contractId', 'lastSyncEventTimeStamp'],
@@ -915,18 +897,13 @@ async function getContractPermissions(
     hederaAccountKey: string
 ) {
     const result = Buffer.from(
-        await workers.addNonRetryableTask(
-            {
-                type: WorkerTaskType.CONTRACT_QUERY,
-                data: {
-                    contractId,
-                    hederaAccountId,
-                    hederaAccountKey,
-                    functionName: 'permissions',
-                    gas: 100000,
-                },
-            },
-            20
+        await contractQuery(
+            ContractAPI.CONTRACT_PERMISSIONS,
+            workers,
+            contractId,
+            hederaAccountId,
+            hederaAccountKey,
+            'permissions'
         )
     );
     return Number(new ethers.AbiCoder().decode(['uint8'], result)[0]);
@@ -1006,11 +983,9 @@ async function saveRetireVC(
         );
     }
 
-    const vcObject = await vcHelper.createVC(
-        did,
-        hederaAccountKey,
-        credentialSubject
-    );
+    const didDocument = await vcHelper.loadDidDocument(did);
+    const vcObject = await vcHelper.createVerifiableCredential(credentialSubject, didDocument, null, null);
+
     const vcMessage = new VCMessage(MessageAction.CreateVC);
     vcMessage.setDocument(vcObject);
     await messageServer.sendMessage(vcMessage);
@@ -1093,8 +1068,9 @@ export async function contractAPI(
                 KeyType.KEY,
                 did
             );
+            const signOptions = await wallet.getUserSignOptions(root);
 
-            const topicHelper = new TopicHelper(root.hederaAccountId, rootKey);
+            const topicHelper = new TopicHelper(root.hederaAccountId, rootKey, signOptions);
             const topic = await topicHelper.create(
                 {
                     type: TopicType.ContractTopic,
@@ -1110,22 +1086,13 @@ export async function contractAPI(
                 }
             );
 
-            const contractId = await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CREATE_CONTRACT,
-                    data: {
-                        bytecodeFileId:
-                            type === ContractType.WIPE
-                                ? process.env.WIPE_CONTRACT_FILE_ID
-                                : process.env.RETIRE_CONTRACT_FILE_ID,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        topicKey: rootKey,
-                        memo: topic.topicId,
-                        gas: type === ContractType.WIPE ? 1000000 : 2000000,
-                    },
-                },
-                20
+            const contractId = await createContract(
+                ContractAPI.CREATE_CONTRACT,
+                workers,
+                type,
+                root.hederaAccountId,
+                rootKey,
+                topic.topicId
             );
 
             await topic.saveKeys();
@@ -1147,7 +1114,8 @@ export async function contractAPI(
             contractMessage.setDocument(contract);
             const messageServer = new MessageServer(
                 root.hederaAccountId,
-                rootKey
+                rootKey,
+                signOptions
             );
             await messageServer
                 .setTopicObject(topic)
@@ -1234,7 +1202,9 @@ export async function contractAPI(
                         existingContract?.lastSyncEventTimeStamp,
                     syncPoolsDate: existingContract?.syncPoolsDate,
                     syncRequestsDate: existingContract?.syncRequestsDate,
-                    syncDisabled: existingContract ? existingContract?.syncDisabled : true
+                    syncDisabled: existingContract
+                        ? existingContract?.syncDisabled
+                        : true,
                 },
                 {
                     contractId,
@@ -1360,7 +1330,7 @@ export async function contractAPI(
             });
 
             const existingContracts = await contractRepository.count({
-                contractId
+                contractId,
             });
             if (existingContracts < 1) {
                 await retirePoolRepository.delete({
@@ -1458,18 +1428,13 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'enableRequests',
-                        gas: 1000000,
-                    },
-                },
-                20
+            await contractCall(
+                ContractAPI.ENABLE_WIPE_REQUESTS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'enableRequests'
             );
 
             return new MessageResponse(true);
@@ -1512,18 +1477,13 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'disableRequests',
-                        gas: 1000000,
-                    },
-                },
-                20
+            await contractCall(
+                ContractAPI.DISABLE_WIPE_REQUESTS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'disableRequests'
             );
 
             return new MessageResponse(true);
@@ -1565,26 +1525,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: request.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'approve',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    request.user
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.APPROVE_WIPE_REQUEST,
+                workers,
+                request.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'approve',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            request.user
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             await wipeRequestRepository.remove(request);
@@ -1636,30 +1591,25 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: request.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'reject',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    request.user
-                                ).toSolidityAddress(),
-                            },
-                            {
-                                type: ContractParamType.BOOL,
-                                value: ban,
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.REJECT_WIPE_REQUEST,
+                workers,
+                request.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'reject',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            request.user
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                    {
+                        type: ContractParamType.BOOL,
+                        value: ban,
+                    },
+                ]
             );
 
             await wipeRequestRepository.remove(request);
@@ -1704,18 +1654,13 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'clear',
-                        gas: 1000000,
-                    },
-                },
-                20
+            await contractCall(
+                ContractAPI.CLEAR_WIPE_REQUESTS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'clear'
             );
 
             await wipeRequestRepository.delete({
@@ -1765,26 +1710,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'addAdmin',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.ADD_WIPE_ADMIN,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'addAdmin',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -1830,26 +1770,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'removeAdmin',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.REMOVE_WIPE_ADMIN,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'removeAdmin',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -1895,26 +1830,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'addManager',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.ADD_WIPE_MANAGER,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'addManager',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -1960,26 +1890,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'removeManager',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.REMOVE_WIPE_MANAGER,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'removeManager',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -2025,26 +1950,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'addWiper',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.ADD_WIPE_WIPER,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'addWiper',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -2090,26 +2010,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'removeWiper',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.REMOVE_WIPE_WIPER,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'removeWiper',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -2375,44 +2290,33 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'clearRequests',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.UINT8,
-                                value: 1,
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.CLEAR_RETIRE_REQUESTS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'clearRequests',
+                [
+                    {
+                        type: ContractParamType.UINT8,
+                        value: 1,
                     },
-                },
-                20
+                ]
             );
-
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'clearRequests',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.UINT8,
-                                value: 2,
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.CLEAR_RETIRE_REQUESTS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'clearRequests',
+                [
+                    {
+                        type: ContractParamType.UINT8,
+                        value: 2,
                     },
-                },
-                20
+                ]
             );
 
             await retireRequestRepository.delete({
@@ -2459,44 +2363,33 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'clearPools',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.UINT8,
-                                value: 1,
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.CLEAR_RETIRE_POOLS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'clearPools',
+                [
+                    {
+                        type: ContractParamType.UINT8,
+                        value: 1,
                     },
-                },
-                20
+                ]
             );
-
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'clearPools',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.UINT8,
-                                value: 2,
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.CLEAR_RETIRE_POOLS,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'clearPools',
+                [
+                    {
+                        type: ContractParamType.UINT8,
+                        value: 2,
                     },
-                },
-                20
+                ]
             );
 
             await retirePoolRepository.delete({
@@ -2603,28 +2496,21 @@ export async function contractAPI(
                 owner
             );
 
-            const result = await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: pool.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'unsetPool',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS_ARRAY,
-                                value: pool.tokens.map((token) =>
-                                    TokenId.fromString(
-                                        token.token
-                                    ).toSolidityAddress()
-                                ),
-                            },
-                        ],
+            const result = await contractCall(
+                ContractAPI.UNSET_RETIRE_POOLS,
+                workers,
+                pool.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'unsetPool',
+                [
+                    {
+                        type: ContractParamType.ADDRESS_ARRAY,
+                        value: pool.tokens.map((token) =>
+                            TokenId.fromString(token.token).toSolidityAddress()
+                        ),
                     },
-                },
-                20
+                ]
             );
 
             await retirePoolRepository.remove(pool);
@@ -2669,36 +2555,28 @@ export async function contractAPI(
                 owner
             );
 
-            const result = await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: request.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'unsetRequest',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    request.user
-                                ).toSolidityAddress(),
-                            },
-                            {
-                                type: ContractParamType.ADDRESS_ARRAY,
-                                value: request.tokens.map((token) =>
-                                    TokenId.fromString(
-                                        token.token
-                                    ).toSolidityAddress()
-                                ),
-                            },
-                        ],
+            const result = await contractCall(
+                ContractAPI.UNSET_RETIRE_REQUEST,
+                workers,
+                request.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'unsetRequest',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            request.user
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                    {
+                        type: ContractParamType.ADDRESS_ARRAY,
+                        value: request.tokens.map((token) =>
+                            TokenId.fromString(token.token).toSolidityAddress()
+                        ),
+                    },
+                ]
             );
-
             await retireRequestRepository.remove(request);
 
             return new MessageResponse(result);
@@ -2758,26 +2636,19 @@ export async function contractAPI(
                 KeyType.KEY,
                 sr.did
             );
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CUSTOM_CONTRACT_CALL,
-                    data: {
-                        contractId: pool.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        gas: 1000000,
-                        parameters: retireAbi.encodeFunctionData('retire', [
-                            tokens.map((token) => [
-                                TokenId.fromString(
-                                    token.token
-                                ).toSolidityAddress(),
-                                token.count,
-                                token.serials,
-                            ]),
-                        ]),
-                    },
-                },
-                20
+            await customContractCall(
+                ContractAPI.RETIRE,
+                workers,
+                pool.contractId,
+                root.hederaAccountId,
+                rootKey,
+                retireAbi.encodeFunctionData('retire', [
+                    tokens.map((token) => [
+                        TokenId.fromString(token.token).toSolidityAddress(),
+                        token.count,
+                        token.serials,
+                    ]),
+                ])
             );
 
             if (pool.immediately) {
@@ -2842,34 +2713,27 @@ export async function contractAPI(
                 owner
             );
 
-            const result = await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: request.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'approveRetire',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    request.user
-                                ).toSolidityAddress(),
-                            },
-                            {
-                                type: ContractParamType.ADDRESS_ARRAY,
-                                value: request.tokens.map((token) =>
-                                    TokenId.fromString(
-                                        token.token
-                                    ).toSolidityAddress()
-                                ),
-                            },
-                        ],
+            const result = await contractCall(
+                ContractAPI.APPROVE_RETIRE,
+                workers,
+                request.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'approveRetire',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            request.user
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                    {
+                        type: ContractParamType.ADDRESS_ARRAY,
+                        value: request.tokens.map((token) =>
+                            TokenId.fromString(token.token).toSolidityAddress()
+                        ),
+                    },
+                ]
             );
 
             await saveRetireVC(
@@ -2924,28 +2788,21 @@ export async function contractAPI(
                 owner
             );
 
-            const result = await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId: request.contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'cancelRetire',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS_ARRAY,
-                                value: request.tokens.map((token) =>
-                                    TokenId.fromString(
-                                        token.token
-                                    ).toSolidityAddress()
-                                ),
-                            },
-                        ],
+            const result = await contractCall(
+                ContractAPI.CANCEL_RETIRE,
+                workers,
+                request.contractId,
+                root.hederaAccountId,
+                rootKey,
+                'cancelRetire',
+                [
+                    {
+                        type: ContractParamType.ADDRESS_ARRAY,
+                        value: request.tokens.map((token) =>
+                            TokenId.fromString(token.token).toSolidityAddress()
+                        ),
                     },
-                },
-                20
+                ]
             );
 
             await retireRequestRepository.remove(request);
@@ -2993,26 +2850,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'addAdmin',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.ADD_RETIRE_ADMIN,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'addAdmin',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);
@@ -3058,26 +2910,21 @@ export async function contractAPI(
                 owner
             );
 
-            await workers.addNonRetryableTask(
-                {
-                    type: WorkerTaskType.CONTRACT_CALL,
-                    data: {
-                        contractId,
-                        hederaAccountId: root.hederaAccountId,
-                        hederaAccountKey: rootKey,
-                        functionName: 'removeAdmin',
-                        gas: 1000000,
-                        parameters: [
-                            {
-                                type: ContractParamType.ADDRESS,
-                                value: AccountId.fromString(
-                                    hederaId
-                                ).toSolidityAddress(),
-                            },
-                        ],
+            await contractCall(
+                ContractAPI.REMOVE_RETIRE_ADMIN,
+                workers,
+                contractId,
+                root.hederaAccountId,
+                rootKey,
+                'removeAdmin',
+                [
+                    {
+                        type: ContractParamType.ADDRESS,
+                        value: AccountId.fromString(
+                            hederaId
+                        ).toSolidityAddress(),
                     },
-                },
-                20
+                ]
             );
 
             return new MessageResponse(true);

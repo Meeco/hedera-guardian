@@ -1,10 +1,8 @@
 import { PolicyRole } from '@guardian/interfaces';
-import { BlockCacheType, PolicyOutputEventType } from '@policy-engine/interfaces';
-import { EventConfig, IPolicyEvent } from './interfaces';
-import { DatabaseServer } from '@guardian/common';
-import { IPolicyUser } from './policy-user';
-import { IHederaAccount } from './helpers/utils';
-import { ComponentsService } from './helpers/components-service';
+import { BlockCacheType, PolicyOutputEventType, EventConfig, IPolicyEvent } from './interfaces/index.js';
+import { DatabaseServer, Policy } from '@guardian/common';
+import { IPolicyUser, UserCredentials } from './policy-user.js';
+import { ComponentsService } from './helpers/components-service.js';
 
 /**
  * Policy roles interface
@@ -104,7 +102,7 @@ export interface IPolicyBlock {
     /**
      * Policy instance
      */
-    policyInstance: any;
+    policyInstance: Policy;
     /**
      * Topic id
      */
@@ -165,7 +163,7 @@ export interface IPolicyBlock {
      * @param policyId
      * @param policy
      */
-    setPolicyInstance(policyId: string, policy: any): void;
+    setPolicyInstance(policyId: string, policy: Policy): void;
 
     /**
      * Set topic id
@@ -727,7 +725,7 @@ export interface IPolicyTokenAddon extends IPolicyBlock {
      * Run logic
      * @param scope
      */
-    run(scope: any, root: IHederaAccount, user: IPolicyUser): Promise<any>;
+    run(scope: any, root: UserCredentials, user: IPolicyUser): Promise<any>;
 }
 
 /**
@@ -854,6 +852,11 @@ export interface IPolicyDBDocument<T> {
      * Document instance
      */
     document?: T;
+
+    /**
+     * Token identifier
+     */
+    tokenId?: string;
 }
 
 /**
@@ -913,11 +916,6 @@ export interface IPolicyInstance {
     readonly dryRun: string;
 
     /**
-     * Database Server
-     */
-    readonly databaseServer: DatabaseServer;
-
-    /**
      * Is Multiple Group
      */
     readonly isMultipleGroup: boolean;
@@ -936,4 +934,45 @@ export interface IPolicyInstance {
      * Policy Owner
      */
     readonly owner: string;
+
+    /**
+     * Policy Owner
+     */
+    readonly components: ComponentsService
+}
+
+/**
+ * Navigation
+ */
+export interface IPolicyNavigation {
+    /**
+     * Data
+     */
+    role: string;
+    /**
+     * Data
+     */
+    steps: IPolicyNavigationStep[];
+}
+
+/**
+ * Navigation Step
+ */
+export interface IPolicyNavigationStep {
+    /**
+     * Data
+     */
+    uuid: string;
+    /**
+     * Data
+     */
+    name: string;
+    /**
+     * Data
+     */
+    block: string;
+    /**
+     * Data
+     */
+    level: number;
 }

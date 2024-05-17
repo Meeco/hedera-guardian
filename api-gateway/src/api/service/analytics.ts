@@ -1,4 +1,4 @@
-import { Guardians } from '@helpers/guardians';
+import { Guardians } from '../../helpers/guardians.js';
 import { Body, Controller, HttpCode, HttpException, HttpStatus, Post, Req } from '@nestjs/common';
 import {
     ApiInternalServerErrorResponse,
@@ -10,7 +10,7 @@ import {
     ApiSecurity,
     ApiTags
 } from '@nestjs/swagger';
-import { checkPermission } from '@auth/authorization-helper';
+import { checkPermission } from '../../auth/authorization-helper.js';
 import { UserRole } from '@guardian/interfaces';
 import {
     FilterDocumentsDTO,
@@ -26,7 +26,7 @@ import {
     SearchPoliciesDTO,
     FilterToolsDTO,
     CompareToolsDTO
-} from '@middlewares/validation/schemas';
+} from '../../middlewares/validation/schemas/index.js';
 
 const ONLY_SR = ' Only users with the Standard Registry role are allowed to make the request.'
 
@@ -361,6 +361,8 @@ export class AnalyticsApi {
         const propLvl = body ? body.propLvl : null;
         const childrenLvl = body ? body.childrenLvl : null;
         const idLvl = body ? body.idLvl : null;
+        const keyLvl = 0;
+        const refLvl = 0;
         const user = req.user;
         if (!user) {
             throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
@@ -383,7 +385,9 @@ export class AnalyticsApi {
                 eventsLvl,
                 propLvl,
                 childrenLvl,
-                idLvl
+                idLvl,
+                keyLvl,
+                refLvl
             );
         } catch (error) {
             throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -743,6 +747,8 @@ export class AnalyticsApi {
         const propLvl = body ? body.propLvl : null;
         const childrenLvl = body ? body.childrenLvl : null;
         const idLvl = body ? body.idLvl : null;
+        const keyLvl = 0;
+        const refLvl = 0;
         const user = req.user;
         if (!user) {
             throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
@@ -764,7 +770,9 @@ export class AnalyticsApi {
                 eventsLvl,
                 propLvl,
                 childrenLvl,
-                idLvl
+                idLvl,
+                keyLvl,
+                refLvl
             );
         } catch (error) {
             throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

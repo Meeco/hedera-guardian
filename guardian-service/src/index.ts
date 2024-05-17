@@ -1,2 +1,3 @@
-import './config';
-import './app';
+import './prototypes/date-prototype.js';
+import './config.js';
+import './app.js';

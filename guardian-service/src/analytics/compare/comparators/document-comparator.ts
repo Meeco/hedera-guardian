@@ -1,17 +1,17 @@
 import { DatabaseServer } from '@guardian/common';
-import { CSV } from '../../table/csv';
-import { ReportTable } from '../../table/report-table';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { ICompareResult } from '../interfaces/compare-result.interface';
-import { IMultiCompareResult } from '../interfaces/multi-compare-result.interface';
-import { IReportTable } from '../interfaces/report-table.interface';
-import { DocumentModel, VcDocumentModel, VpDocumentModel } from '../models/document.model';
-import { SchemaModel } from '../models/schema.model';
-import { DocumentsRate } from '../rates/documents-rate';
-import { ComparePolicyUtils } from '../utils/compare-policy-utils';
-import { MultiCompareUtils } from '../utils/multi-compare-utils';
-import { CompareUtils } from '../utils/utils';
-import { IRate } from '../interfaces/rate.interface';
+import { CSV } from '../../table/csv.js';
+import { ReportTable } from '../../table/report-table.js';
+import { CompareOptions, IRefLvl } from '../interfaces/compare-options.interface.js';
+import { ICompareResult } from '../interfaces/compare-result.interface.js';
+import { IMultiCompareResult } from '../interfaces/multi-compare-result.interface.js';
+import { IReportTable } from '../interfaces/report-table.interface.js';
+import { DocumentModel, VcDocumentModel, VpDocumentModel } from '../models/document.model.js';
+import { SchemaModel } from '../models/schema.model.js';
+import { DocumentsRate } from '../rates/documents-rate.js';
+import { ComparePolicyUtils } from '../utils/compare-policy-utils.js';
+import { MultiCompareUtils } from '../utils/multi-compare-utils.js';
+import { CompareUtils } from '../utils/utils.js';
+import { IRate } from '../interfaces/rate.interface.js';
 
 /**
  * Component for comparing two documents
@@ -21,15 +21,10 @@ export class DocumentComparator {
      * Compare Options
      * @private
      */
-    private readonly options: ICompareOptions;
+    private readonly options: CompareOptions;
 
-    constructor(options?: ICompareOptions) {
-        this.options = {
-            propLvl: 2,
-            childLvl: 2,
-            eventLvl: 2,
-            idLvl: 2
-        }
+    constructor(options?: CompareOptions) {
+        this.options = options || CompareOptions.default;
     }
 
     /**
@@ -353,7 +348,45 @@ export class DocumentComparator {
      * @private
      * @static
      */
-    private static async loadDocument(id: string, options: ICompareOptions): Promise<DocumentModel> {
+    private static async loadDocumentsByRef(ref: string, options: CompareOptions): Promise<any[]> {
+        let document: any[];
+
+        const filter = options.owner ? {
+            $or: [{
+                relationships: ref,
+                messageId: { $exists: true, $ne: null }
+            }, {
+                relationships: ref,
+                owner: options.owner
+            }]
+        } : {
+            relationships: ref,
+            messageId: { $exists: true, $ne: null }
+        };
+
+        document = await DatabaseServer.getVCs(filter);
+
+        if (document && document.length) {
+            return document;
+        }
+
+        document = await DatabaseServer.getVPs(filter);
+
+        if (document && document.length) {
+            return document;
+        }
+
+        return [];
+    }
+
+    /**
+     * Load document
+     * @param id
+     * @param options
+     * @private
+     * @static
+     */
+    private static async loadDocument(id: string, options: CompareOptions): Promise<DocumentModel> {
         let document: any;
 
         document = await DatabaseServer.getVCById(id);
@@ -408,11 +441,67 @@ export class DocumentComparator {
      * @private
      * @static
      */
+    private static async createRelationships(
+        documentModel: DocumentModel,
+        cacheDocuments: Map<string, DocumentModel>,
+        cacheSchemas: Map<string, SchemaModel>,
+        options: CompareOptions
+    ): Promise<void> {
+        if (options.refLvl === IRefLvl.None) {
+            //None (old 0)
+            documentModel.setRelationships([]);
+            return;
+        }
+
+        if (options.refLvl === IRefLvl.Revert) {
+            //Revert (old 1)
+            const documents = await DocumentComparator.loadDocumentsByRef(documentModel.messageId, options);
+            const relationshipModels: DocumentModel[] = [];
+            for (const doc of documents) {
+                const item = await DocumentComparator.createDocument(cacheDocuments, cacheSchemas, doc.id, options);
+                if (item) {
+                    relationshipModels.push(item);
+                }
+            }
+            documentModel.setRelationships(relationshipModels);
+        } else if (options.refLvl === IRefLvl.Merge) {
+            //Merge (old 2)
+            const documents = await DocumentComparator.loadDocumentsByRef(documentModel.messageId, options);
+            const relationshipModels: DocumentModel[] = [];
+            for (const doc of documents) {
+                const item = await DocumentComparator.createDocument(cacheDocuments, cacheSchemas, doc.id, options);
+                if (item) {
+                    relationshipModels.push(item);
+                }
+            }
+            documentModel.merge(relationshipModels);
+        } else {
+            //Default
+            const relationshipModels: DocumentModel[] = [];
+            for (const relationship of documentModel.relationshipIds) {
+                const item = await DocumentComparator.createDocument(cacheDocuments, cacheSchemas, relationship, options);
+                if (item) {
+                    relationshipModels.push(item);
+                }
+            }
+            documentModel.setRelationships(relationshipModels);
+        }
+    }
+
+    /**
+     * Create document model
+     * @param cacheDocuments
+     * @param cacheSchemas
+     * @param id
+     * @param options
+     * @private
+     * @static
+     */
     private static async createDocument(
         cacheDocuments: Map<string, DocumentModel>,
         cacheSchemas: Map<string, SchemaModel>,
         id: string,
-        options: ICompareOptions
+        options: CompareOptions
     ): Promise<DocumentModel> {
         if (cacheDocuments.has(id)) {
             return cacheDocuments.get(id);
@@ -426,16 +515,8 @@ export class DocumentComparator {
             return null;
         }
 
-        const relationshipModels: DocumentModel[] = [];
-        for (const relationship of documentModel.relationshipIds) {
-            const r = await DocumentComparator.createDocument(
-                cacheDocuments, cacheSchemas, relationship, options
-            );
-            if (r) {
-                relationshipModels.push(r);
-            }
-        }
-        documentModel.setRelationships(relationshipModels);
+        //Relationships
+        await DocumentComparator.createRelationships(documentModel, cacheDocuments, cacheSchemas, options);
 
         //Schemas
         const schemaModels: SchemaModel[] = [];
@@ -463,7 +544,7 @@ export class DocumentComparator {
      * @public
      * @static
      */
-    public static async createModelById(id: string, options: ICompareOptions): Promise<DocumentModel> {
+    public static async createModelById(id: string, options: CompareOptions): Promise<DocumentModel> {
         const cacheDocuments = new Map<string, DocumentModel>();
         const cacheSchemas = new Map<string, SchemaModel>();
         const documentModel = await DocumentComparator.createDocument(

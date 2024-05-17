@@ -1,15 +1,35 @@
-import { EventActor, EventCallback, PolicyBlockFullArgumentList, PolicyBlockMap, PolicyInputEventType, PolicyLink, PolicyOutputEventType, PolicyTagMap } from '@policy-engine/interfaces';
+import {
+    EventActor,
+    EventCallback,
+    PolicyBlockFullArgumentList,
+    PolicyBlockMap,
+    PolicyInputEventType,
+    PolicyLink,
+    PolicyOutputEventType,
+    PolicyTagMap
+} from './interfaces/index.js';
 import { BlockType, GenerateUUIDv4, ModuleStatus, PolicyEvents, PolicyType } from '@guardian/interfaces';
-import { AnyBlockType, IPolicyBlock, IPolicyContainerBlock, IPolicyInstance, IPolicyInterfaceBlock, ISerializedBlock, ISerializedBlockExtend } from './policy-engine.interface';
+import {
+    AnyBlockType,
+    IPolicyBlock,
+    IPolicyContainerBlock,
+    IPolicyInstance,
+    IPolicyInterfaceBlock,
+    IPolicyNavigation,
+    IPolicyNavigationStep,
+    ISerializedBlock,
+    ISerializedBlockExtend
+} from './policy-engine.interface.js';
 import { DatabaseServer, Policy, PolicyTool } from '@guardian/common';
-import { STATE_KEY } from '@policy-engine/helpers/constants';
-import { GetBlockByType } from '@policy-engine/blocks/get-block-by-type';
-import { GetOtherOptions } from '@policy-engine/helpers/get-other-options';
-import { GetBlockAbout } from '@policy-engine/blocks';
-import { IPolicyUser } from './policy-user';
-import { ExternalEvent } from './interfaces/external-event';
-import { BlockTreeGenerator } from '@policy-engine/block-tree-generator';
-import { ComponentsService } from './helpers/components-service';
+import { STATE_KEY } from './helpers/constants.js';
+import { GetBlockByType } from './blocks/get-block-by-type.js';
+import { GetOtherOptions } from './helpers/get-other-options.js';
+import { GetBlockAbout } from './blocks/index.js';
+import { IPolicyUser } from './policy-user.js';
+import { ExternalEvent } from './interfaces/external-event.js';
+import { BlockTreeGenerator } from './block-tree-generator.js';
+import { PolicyNavigationMap } from './interfaces/block-state.js';
+import { ComponentsService } from './helpers/components-service.js';
 
 /**
  * Policy tag helper
@@ -224,6 +244,13 @@ export class PolicyComponentsUtils {
     private static readonly TagMapByPolicyId: Map<string, PolicyTagMap> =
         new Map();
     /**
+     * Block navigation map
+     * policyId -> Block tag -> Block UUID
+     * @private
+     */
+    private static readonly NavigationMapByPolicyId: Map<string, PolicyNavigationMap> =
+        new Map();
+    /**
      * Policy actions map
      * policyId -> blockId -> EventName -> Function
      * @private
@@ -265,7 +292,7 @@ export class PolicyComponentsUtils {
     public static getDocumentCacheFields(policyId: string) {
         let cache = PolicyComponentsUtils.DocumentCacheFieldsMap.get(policyId);
         if (!cache) {
-            cache = new Set<string>();
+            cache = new Set<string>(['id', 'credentialSubject.id', 'credentialSubject.0.id']);
             PolicyComponentsUtils.DocumentCacheFieldsMap.set(policyId, cache);
         }
         return cache;
@@ -711,14 +738,14 @@ export class PolicyComponentsUtils {
      */
     public static async RegisterPolicyInstance(
         policyId: string,
-        policy: Policy
+        policy: Policy,
+        components: ComponentsService
     ) {
         const dryRun = policy.status === PolicyType.DRY_RUN ? policyId : null;
-        const databaseServer = new DatabaseServer(dryRun);
         const policyInstance: IPolicyInstance = {
             policyId,
             dryRun,
-            databaseServer,
+            components,
             isMultipleGroup: !!policy.policyGroups?.length,
             instanceTopicId: policy.instanceTopicId,
             synchronizationTopicId: policy.synchronizationTopicId,
@@ -753,6 +780,31 @@ export class PolicyComponentsUtils {
             await instance.afterInit();
             await PolicyComponentsUtils.RegisterDefaultEvent(instance);
             await PolicyComponentsUtils.RegisterCustomEvent(instance);
+        }
+    }
+
+    /**
+     * Register policy instance
+     *
+     * @param policyId
+     * @param policy
+     * @constructor
+     */
+    public static async RegisterNavigation(
+        policyId: string,
+        navigation: IPolicyNavigation[]
+    ) {
+        const map: PolicyNavigationMap = new Map<string, IPolicyNavigationStep[]>();
+        PolicyComponentsUtils.NavigationMapByPolicyId.set(policyId, map);
+        if (Array.isArray(navigation)) {
+            navigation.forEach(nav => {
+                if (Array.isArray(nav.steps)) {
+                    nav.steps.forEach((step: IPolicyNavigationStep) => {
+                        step.uuid = PolicyComponentsUtils.TagMapByPolicyId.get(policyId).get(step.block);
+                    });
+                }
+                map.set(nav.role, nav.steps);
+            });
         }
     }
 
@@ -927,6 +979,43 @@ export class PolicyComponentsUtils {
     }
 
     /**
+     * Get tag block map
+     * @param policyId Policy identifier
+     * @returns Tag block map
+     */
+    public static GetTagBlockMap(policyId: string) {
+        return PolicyComponentsUtils.TagMapByPolicyId.get(policyId);
+    }
+
+    /**
+     * Get navigation
+     * @param policyId
+     * @param role
+     */
+    public static GetNavigation<T extends IPolicyNavigationStep[]>(
+        policyId: string,
+        user: IPolicyUser
+    ): T {
+        if (!PolicyComponentsUtils.PolicyById.has(policyId)) {
+            throw new Error('The policy does not exist');
+        }
+        if (!PolicyComponentsUtils.NavigationMapByPolicyId.has(policyId)) {
+            return null;
+        }
+        const navMap = PolicyComponentsUtils.NavigationMapByPolicyId.get(policyId);
+        const policy = PolicyComponentsUtils.PolicyById.get(policyId);
+        if (!user.role) {
+            if (user.did === policy.owner) {
+                return navMap.get('OWNER') as T;
+            } else {
+                return navMap.get('NO_ROLE') as T;
+            }
+        } else {
+            return navMap.get(user.role) as T;
+        }
+    }
+
+    /**
      * Get block instance by tag
      * @param policyId
      */
@@ -979,30 +1068,12 @@ export class PolicyComponentsUtils {
         policy: IPolicyInstance | IPolicyInterfaceBlock,
         user: IPolicyUser
     ): Promise<any[]> {
-        return await policy.databaseServer.getGroupsByUser(
+        return await policy.components.databaseServer.getGroupsByUser(
             policy.policyId,
             user.did,
             {
                 fields: ['uuid', 'role', 'groupLabel', 'groupName', 'active'],
             }
-        );
-    }
-
-    /**
-     * Select Policy Group
-     * @param policy
-     * @param user
-     * @param uuid
-     */
-    public static async SelectGroup(
-        policy: IPolicyInstance | IPolicyInterfaceBlock,
-        user: IPolicyUser,
-        uuid: string
-    ): Promise<void> {
-        await policy.databaseServer.setActiveGroup(
-            policy.policyId,
-            user.did,
-            uuid
         );
     }
 
@@ -1052,7 +1123,7 @@ export class PolicyComponentsUtils {
             }
 
             result.userGroups = groups;
-            if (policy.status === PolicyType.PUBLISH) {
+            if (policy.status === PolicyType.PUBLISH || policy.status === PolicyType.DISCONTINUED) {
                 const multiPolicy = await DatabaseServer.getMultiPolicy(
                     policy.instanceTopicId,
                     did
@@ -1188,5 +1259,16 @@ export class PolicyComponentsUtils {
                 }
             );
         }
+    }
+
+    /**
+     * Get policy components
+     * @param policyId
+     */
+    public static GetPolicyComponents(policyId: string): ComponentsService | null {
+        if (PolicyComponentsUtils.PolicyById.has(policyId)) {
+            return PolicyComponentsUtils.PolicyById.get(policyId).components;
+        }
+        return null;
     }
 }

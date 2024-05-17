@@ -1,11 +1,11 @@
 import MurmurHash3 from 'imurmurhash';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { IKeyMap } from '../interfaces/key-map.interface';
-import { IWeightModel } from '../interfaces/weight-model.interface';
-import { PropertyType } from '../types/property.type';
-import { WeightType } from '../types/weight.type';
-import { PropertiesModel } from './properties.model';
-import { PropertyModel } from './property.model';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { IKeyMap } from '../interfaces/key-map.interface.js';
+import { IWeightModel } from '../interfaces/weight-model.interface.js';
+import { PropertyType } from '../types/property.type.js';
+import { WeightType } from '../types/weight.type.js';
+import { PropertiesModel } from './properties.model.js';
+import { PropertyModel } from './property.model.js';
 
 /**
  * Variable Model
@@ -56,7 +56,7 @@ export class VariableModel implements IWeightModel {
      * @param options - comparison options
      * @public
      */
-    public update(options: ICompareOptions): void {
+    public update(options: CompareOptions): void {
         const weights = [];
         const weightMap = {};
 

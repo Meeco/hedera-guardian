@@ -4,30 +4,36 @@ import {
     LargePayloadContainer,
     Logger,
     MessageBrokerChannel,
+    Migration,
     Workers
 } from '@guardian/common';
-import { MikroORM } from '@mikro-orm/core';
-import { MongoDriver } from '@mikro-orm/mongodb';
 import { HttpStatus, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { CronJob } from 'cron';
 import express from 'express';
 import process from 'process';
-import { ReportService } from './analytics/report.service';
-import { AppModule } from './app.module';
+import { ReportService } from './analytics/report.service.js';
+import { AppModule } from './app.module.js';
 import { SwaggerModule } from '@nestjs/swagger';
-import { SwaggerConfig } from '@helpers/swagger-config';
+import { SwaggerConfig } from './helpers/swagger-config.js';
+import { AnalyticsUtils } from './helpers/utils.js';
 
 const PORT = process.env.PORT || 3020;
 Promise.all([
-    MikroORM.init<MongoDriver>({
+    Migration({
         ...COMMON_CONNECTION_CONFIG,
+        migrations: {
+            path: 'dist/migrations',
+            transactional: false
+        },
         driverOptions: {
             useUnifiedTopology: true
         },
         ensureIndexes: true
-    }),
+    }, [
+        'v2-21-0'
+    ]),
     NestFactory.create(AppModule, {
         rawBody: true,
         bodyParser: false
@@ -52,6 +58,9 @@ Promise.all([
         app.use(express.static('public'));
         app.use(express.json({ limit: '2mb' }));
 
+        AnalyticsUtils.DEBUG_LVL = parseInt(process.env.ANALYTICS_DEBUG_LVL || '3', 10);
+        AnalyticsUtils.REQUEST_LIMIT = parseInt(process.env.ANALYTICS_REQUEST_LIMIT || '30', 10);
+
         new Logger().setConnection(cn);
         const workersHelper = new Workers();
         await workersHelper.setConnection(cn).init();
@@ -62,12 +71,12 @@ Promise.all([
             new LargePayloadContainer().runServer();
         }
 
-        await ReportService.init(process.env.INITIALIZATION_TOPIC_ID);
-        await ReportService.restart(process.env.INITIALIZATION_TOPIC_ID);
+        await ReportService.init(ReportService.getRootTopic(), ReportService.getRestartDate());
+        await ReportService.restart(ReportService.getRootTopic(), ReportService.getRestartDate());
 
         const mask: string = process.env.ANALYTICS_SCHEDULER || '0 0 * * 1';
         const job = new CronJob(mask, () => {
-            ReportService.run(process.env.INITIALIZATION_TOPIC_ID)
+            ReportService.run(ReportService.getRootTopic(), ReportService.getRestartDate())
         }, null, false, 'UTC');
         job.start();
 

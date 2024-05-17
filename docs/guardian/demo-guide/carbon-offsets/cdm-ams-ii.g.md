@@ -1,4 +1,4 @@
-# 🏨 CDM AMS II.G
+# 🏨 CDM AMS II.G: Energy Efficiency Measures in Thermal Applications of Non-Renewable Biomass
 
 ## Table of Contents
 
@@ -16,11 +16,13 @@
 
 [Important Documents & Schemas](cdm-ams-ii.g.md#\_toc1808393583)
 
+[Tools Referenced](cdm-ams-ii.g.md#tools-referenced)
+
 [Token (Carbon Emission Reduction)](cdm-ams-ii.g.md#\_toc360615091)
 
 [Step by Step](cdm-ams-ii.g.md#\_toc619173481)
 
-## Introduction <a href="#_toc975016542" id="_toc975016542"></a>
+## Introduction <a href="#toc975016542" id="toc975016542"></a>
 
 Access to clean cooking is a pressing global challenge, with billions of people still relying on traditional biomass fuels for their cooking needs, leading to immense human and environmental costs. In this context, the Clean Development Mechanism (CDM) offers a promising pathway to address this issue by introducing energy-efficient thermal energy generation units that utilize non-renewable biomass. AMS-II.G aims to promote sustainable development and mitigate greenhouse gas (GHG) emissions through the implementation of clean cookstove projects.
 
@@ -32,7 +34,7 @@ By providing an accessible and standardized framework for clean cooking initiati
 
 Currently, the AMS-II.G Guardian policy uses the Thermal Energy Output (TEO) testing method to estimate fuel consumption, which plays a crucial role in determining the energy efficiency of thermal applications and evaluating associated emissions. As the policy undergoes future iterations, additional testing methods such as the water boiling test (WBT), controlled cooking test (CCT), and kitchen performance test (KPT) will be integrated to further enhance the accuracy and effectiveness of fuel consumption estimation. Moreover, the policy includes modules like tool 30 and tool 33, which can be utilized for default values or to calculate fNRB (non-renewable biomass fraction), a parameter that is used in the emission reductions calculation.
 
-## Need and Use for the AMS-II.G Policy <a href="#_toc752136503" id="_toc752136503"></a>
+## Need and Use for the AMS-II.G Policy <a href="#toc752136503" id="toc752136503"></a>
 
 A methodology like AMS-II.G is needed to address the universal challenge of guaranteeing access to clean cooking. In developing countries, more than 3 billion people, representing a substantial portion of the global population, still rely on traditional biomass fuels for their primary cooking needs using open fires or traditional stoves. This reliance on solid-fuel cooking, such as wood, crop residues, and dung, leads to immense human costs in terms of health, environmental degradation, and economic burdens.
 
@@ -42,21 +44,19 @@ To combat these challenges and transition towards cleaner cooking practices, ini
 
 AMS-II.G provides a standardized and measurable framework for clean cooking projects, allowing for reliable estimation and verification of emission reductions. The Guardian AMS-II.G Policy offers a unique technical opportunity for companies to streamline, enhance robustness, and establish trust and transparency within their clean cookstove projects. The guidelines and equations provided in the methodology are incorporated into schemas featuring built-in auto-calculation blocks, emission factors, and data from modules like tool 33. The results of the data provided undergo immutable and transparent verification by third parties. Ultimately, the emissions are tokenized, elevating tracking, transparency, accounting, and reporting, with the data structured to comply with AMS-II.G reporting requirements.
 
-## Demo Video <a href="#_toc264453392" id="_toc264453392"></a>
+## Demo Video <a href="#toc264453392" id="toc264453392"></a>
 
 [Youtube](https://youtu.be/jfl72\_fL6iU?si=M5MbBFlVH2SCReRf)
 
-## Policy Workflow <a href="#_toc2070089206" id="_toc2070089206"></a>
+## Policy Workflow <a href="#toc2070089206" id="toc2070089206"></a>
 
 <figure><img src="../../../.gitbook/assets/image (372).png" alt=""><figcaption></figcaption></figure>
 
-## Policy Guide <a href="#_toc93669646" id="_toc93669646"></a>
+## Policy Guide <a href="#toc93669646" id="toc93669646"></a>
 
 This policy is published to Hedera network and can either be imported via Github (.policy file) or IPSF timestamp.
 
-Latest Version - 1698751171.908275443
-
-### **Available Roles** <a href="#_toc21187385" id="_toc21187385"></a>
+### **Available Roles** <a href="#toc21187385" id="toc21187385"></a>
 
 Project Proponent - The project proponent is responsible for executing the emission reduction project. They develop and implement strategies to substitute fossil fuel-based lighting systems with LED/CFL lighting systems. The project proponent must adhere to the requirements outlined by the CDM and provide evidence of the emission reductions achieved. Upon successful verification, the project proponent receives certified emission reduction (CER) tokens as an incentive for their emission reductions.
 
@@ -66,111 +66,100 @@ Designated National Authority (DNA) - The DNA is a governmental body representin
 
 Registry (UNFCCC) - The United Nations Framework Convention on Climate Change (UNFCCC) serves as the registry for the CDM. They oversee the multiple workflow steps involved in the project's approval, including the verification and validation process by the VVB and the endorsement by the DNA. The UNFCCC's approval is necessary for the project's successful registration and issuance of CER tokens
 
-### Important Documents & Schemas <a href="#_toc1808393583" id="_toc1808393583"></a>
+### Important Documents & Schemas <a href="#toc1808393583" id="toc1808393583"></a>
 
 1. Project Description - Project Proponent information, standard project information, methodology information, etc.
 2. Emissions Reduction – Schema included within the project information form; this is filled out by the project proponent to calculate annual emission reductions.
-3. Default Values (Tool 33) - Tool 33 is included as a module within the policy. This module is used to calculate default values for common parameters like fNRB (Fraction of non-renewable biomass).
-4. Monitoring Report – The monitoring report is to be filled out based on the monitoring plan mentioned within the methodology.
+3. Monitoring Report – The monitoring report is to be filled out based on the monitoring plan mentioned within the methodology.
 
-### Token (Carbon Emission Reduction) <a href="#_toc360615091" id="_toc360615091"></a>
+### Tools Referenced
+
+* Methodological Tool 19- Demonstration of additionality of microscale project activities
+* Methodological Tool 21- Demonstration of additionality of small-scale project activities
+* Methodological Tool 30- Calculation of the fraction of non-renewable biomass
+
+### Token (Carbon Emission Reduction) <a href="#toc360615091" id="toc360615091"></a>
 
 Certified Emission Reduction (CER) credits, each equivalent to one tonne of CO2.
 
-### Step by Step <a href="#_toc619173481" id="_toc619173481"></a>
+### Step by Step <a href="#toc619173481" id="toc619173481"></a>
 
-1. The policy can be imported using IPFS timestamp 1698751171.908275443
+1. Log in as the Standard Registry and import the policy either by file or through IPFS timestamp by selecting the third button at the top right.
 
-![](<../../../.gitbook/assets/1 (2).png>)
+<figure><img src="../../../.gitbook/assets/image (478).png" alt=""><figcaption></figcaption></figure>
 
-2. Select “Import”.
+<figure><img src="../../../.gitbook/assets/image (479).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/2 (4).png>)
+<figure><img src="../../../.gitbook/assets/image (480).png" alt=""><figcaption></figcaption></figure>
 
-3. Place status in “Dry Run” and select “Go”.
+2. To start using the policy you first have to change the status of the policy from “Draft” to “Dry Run” or “Publish”, then select the “Register” button.
 
-![](../../../.gitbook/assets/3.png)
+<figure><img src="../../../.gitbook/assets/image (481).png" alt=""><figcaption></figcaption></figure>
 
-4. By selecting the edit button in the operations tab, you can access the policy configurator and view the workflow blocks.
+<figure><img src="../../../.gitbook/assets/image (482).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/4.png)
+3. Create a new user by clicking the “Create User” button and assign their role as Project Participant.
 
-5. You can access and view the module by selecting the module tab in the policy configurator.
+<figure><img src="../../../.gitbook/assets/image (483).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/5.png)
+4. The Project Participant can now provide their name or the name they would like to see reflect when registering for this project (i.e. their organization’s name).
 
-6. Going back to the policy workflow, add users by selecting the “create user” button. Then select the dropdown user menu and select “Virtual User 1”.
+<figure><img src="../../../.gitbook/assets/image (484).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/6.png)
+5. Сreate a new user again and assign their role as VVB.
 
-7. Virtual User 1 will be assigned to the Project\_Proponent
+<figure><img src="../../../.gitbook/assets/image (485).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/7 (2).png>)
+6. The VVB can now provide their name or the name they would like users to see when reviewing projects (i.e. their organization’s name).
 
-8. Virtual User 2 will be assigned to the VVB
+<figure><img src="../../../.gitbook/assets/image (486).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/8 (8).png>)
+7. Log in as the SR and select the “Approve PP” or the “Approve VVB” tab to view the documents submitted by the Project Participant and by the VVB. The SR can approve their requests by clicking on the “Approve" button.
 
-9. Add the VVBs name
+<figure><img src="../../../.gitbook/assets/image (487).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/9 (7).png>)
+<figure><img src="../../../.gitbook/assets/image (488).png" alt=""><figcaption></figcaption></figure>
 
-10. The final role that will be assigned to Virtual User 3 is the Designated National Authority
+8. Log in as the Project Participant and create a new project by clicking on the "New Project" button. This form is used to collect information about the project, organization, and all the data needed to run the emission reduction calculations. Once all the required fields have been filled the “Create” button will turn dark blue. By selecting the “Create” button all the data will be sent to the SR for review/approval.
 
-![](../../../.gitbook/assets/10.png)
+<figure><img src="../../../.gitbook/assets/image (489).png" alt=""><figcaption></figcaption></figure>
 
-11. Click on the Users dropdown menu and select Virtual User 1 (Project Proponent) and select the “New Project” button.
+<figure><img src="../../../.gitbook/assets/image (490).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/11 (1).png>)
+9. Log back in as the SR and after reviewing the document by selecting the “View Document” button, the SR can validate the project submitted by the Project Participant by clicking the “Validate” button. If the data does not satisfy the rules set by the SR, then the “Reject” button can be used.
 
-12. Once the form is completed, go to Virtual User 3’s (Designated National Authority) profile. The Designated National Authority can now view the project information document by selecting “view document” and then they can select validate or reject.
+<figure><img src="../../../.gitbook/assets/image (491).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/12.png)
+<figure><img src="../../../.gitbook/assets/image (492).png" alt=""><figcaption></figcaption></figure>
 
-13. Go to the Administrator’s (Standard Registry) profile. The Standard Registry can now approve the VVB.
+10. Log in as the Project Participant and create a monitoring report by clicking on the “Add Report” button then fill out the monitoring report form.
 
-![](<../../../.gitbook/assets/13 (6).png>)
+<figure><img src="../../../.gitbook/assets/image (493).png" alt=""><figcaption></figcaption></figure>
 
-14. Stay on the Administrator’s (Standard Registry) profile. The Standard Registry now has access to the project information document by clicking “view document” once they have reviewed it they can select “Add” to add the project to the project pipeline.
+<figure><img src="../../../.gitbook/assets/image (494).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/14.png)
+11. After creating the monitoring report, the project participant assigns the VVB to verify it by navigating to the “Monitoring Reports” tab and selecting the dropdown under “Assign”.
 
-15. Navigate back to Virtual User 1’s (Project Proponent) profile and assign the VVB.
+<figure><img src="../../../.gitbook/assets/image (495).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/15.png)
+12. Log in as the VVB and click the “Monitoring Reports” tab to review the document submitted by the Project Participant. After reviewing the monitoring report by selecting “View Document”, the VVB can select “Verify”.
 
-16. Go to the Virtual User 2’s (VVB) profile. The VVB has access to the project form by selecting “View Document”. Then the VVB can select Verify or Reject.
+<figure><img src="../../../.gitbook/assets/image (496).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/16.png)
+<figure><img src="../../../.gitbook/assets/image (497).png" alt=""><figcaption></figcaption></figure>
 
-17. Navigate back to the Administrator and select Add.
+13. Log in as the SR to review the monitoring report by selecting the “View Document” button in the “Monitoring Reports” tab. The SR can approve the monitoring report by selecting “Approve”. This will also trigger the minting process. You can see the minting status under “Status” change from “Minting” to “Minted”.
 
-![](../../../.gitbook/assets/17.png)
+<figure><img src="../../../.gitbook/assets/image (498).png" alt=""><figcaption></figcaption></figure>
 
-18. Navigate back to Virtual User 1’s (Project Proponent) profile and select “Add Report”.
+<figure><img src="../../../.gitbook/assets/image (499).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/18.png)
+14. Once the minting process is completed, you can view the token amount by selecting the “Token History” tab.
 
-19. Go to the Virtual User 2’s (VVB) profile. The VVB has access to the monitoring report form by selecting “View Document”. Then the VVB can select Verify or Reject.
+<figure><img src="../../../.gitbook/assets/image (500).png" alt=""><figcaption></figcaption></figure>
 
-![](../../../.gitbook/assets/19.png)
+15. The TrustChain can also be viewed by clicking on the “View TrustChain” button. Please note that the token amount may show “-1/83152” when the tokens are still minting like the example provided below.
 
-20. Navigate back to the Administrator’s profile and select the “Mint” button.
+<figure><img src="../../../.gitbook/assets/image (501).png" alt=""><figcaption></figcaption></figure>
 
-![](<../../../.gitbook/assets/20 (3).png>)
-
-21. The status should now say “Minted”.
-
-<figure><img src="../../../.gitbook/assets/image (195).png" alt=""><figcaption></figcaption></figure>
-
-22. By selecting the “Token History” tab you can see the number of tokens minted and then you can select “View TrustChain”
-
-<figure><img src="../../../.gitbook/assets/image (1) (2).png" alt=""><figcaption></figcaption></figure>
-
-23. The Verified Presentation should now be open. You can view information like the recipient's name, token amount, mint date, verified signature, etc.
-
-<figure><img src="../../../.gitbook/assets/image (2) (8).png" alt=""><figcaption></figcaption></figure>
-
-24. By scrolling to the bottom of the page you can view the TrustChain.
-
-<figure><img src="../../../.gitbook/assets/image (3) (6).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/image (502).png" alt=""><figcaption></figcaption></figure>

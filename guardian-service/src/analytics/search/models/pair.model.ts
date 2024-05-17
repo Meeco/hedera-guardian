@@ -1,15 +1,22 @@
 import {
     ArtifactsRate,
+    CompareOptions,
     CompareUtils,
     EventsRate,
+    IChildrenLvl,
+    IEventsLvl,
+    IIdLvl,
+    IKeyLvl,
+    IRefLvl,
+    IPropertiesLvl,
     IRate,
     PermissionsRate,
     PropertiesRate,
     RateKeyMap,
     RateMap
-} from '../../compare';
-import { SearchUtils } from '../utils/utils';
-import { BlockSearchJson, BlockSearchModel } from './block.model';
+} from '../../compare/index.js';
+import { SearchUtils } from '../utils/utils.js';
+import { BlockSearchJson, BlockSearchModel } from './block.model.js';
 
 export interface PairSearchJson {
     /**
@@ -60,12 +67,15 @@ export class PairSearchModel {
      * Compare options
      * @private
      */
-    private readonly _options = {
-        idLvl: 1,
-        eventLvl: 2,
-        childLvl: 1,
-        propLvl: 2
-    }
+    private readonly _options = new CompareOptions(
+        IPropertiesLvl.All,
+        IChildrenLvl.All,
+        IEventsLvl.All,
+        IIdLvl.All,
+        IKeyLvl.Default,
+        IRefLvl.Default,
+        null
+    );
 
     constructor(source: BlockSearchModel, filter: BlockSearchModel) {
         this._hash = 0;

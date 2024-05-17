@@ -1,15 +1,15 @@
-import { PolicyBlockDefaultOptions } from '@policy-engine/helpers/policy-block-default-options';
-import { BlockCacheType, EventConfig } from '@policy-engine/interfaces';
-import { PolicyBlockDecoratorOptions, PolicyBlockFullArgumentList } from '@policy-engine/interfaces/block-options';
+import { PolicyBlockDefaultOptions } from '../../helpers/policy-block-default-options.js';
+import { BlockCacheType, EventConfig } from '../../interfaces/index.js';
+import { PolicyBlockDecoratorOptions, PolicyBlockFullArgumentList } from '../../interfaces/block-options.js';
 import { PolicyRole, PolicyType } from '@guardian/interfaces';
-import { AnyBlockType, IPolicyBlock, IPolicyDocument, ISerializedBlock, } from '../../policy-engine.interface';
-import { PolicyComponentsUtils } from '../../policy-components-utils';
-import { IPolicyEvent, PolicyLink } from '@policy-engine/interfaces/policy-event';
-import { PolicyInputEventType, PolicyOutputEventType } from '@policy-engine/interfaces/policy-event-type';
-import { Logger, DatabaseServer } from '@guardian/common';
+import { AnyBlockType, IPolicyBlock, IPolicyDocument, ISerializedBlock, } from '../../policy-engine.interface.js';
+import { PolicyComponentsUtils } from '../../policy-components-utils.js';
+import { IPolicyEvent, PolicyLink } from '../../interfaces/policy-event.js';
+import { PolicyInputEventType, PolicyOutputEventType } from '../../interfaces/policy-event-type.js';
+import { Logger, DatabaseServer, Policy } from '@guardian/common';
 import deepEqual from 'deep-equal';
-import { IPolicyUser, PolicyUser } from '@policy-engine/policy-user';
-import { ComponentsService } from '../components-service';
+import { IPolicyUser, PolicyUser } from '../../policy-user.js';
+import { ComponentsService } from '../components-service.js';
 
 /**
  * Basic block decorator
@@ -104,7 +104,7 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
             /**
              * Policy instance
              */
-            public policyInstance: any;
+            public policyInstance: Policy;
             /**
              * Topic id
              */
@@ -186,9 +186,12 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
                 this.sourceLinks = [];
                 this.targetLinks = [];
 
-                if (!Array.isArray(this.actions)) {
-                    this.actions = [];
+                if(Array.isArray(super.actions)) {
+                  this.actions = [...super.actions]
+                } else {
+                  this.actions = [];
                 }
+
                 this.actions.push([PolicyInputEventType.RunEvent, this.runAction]);
                 this.actions.push([PolicyInputEventType.RefreshEvent, this.refreshAction]);
 
@@ -293,7 +296,13 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
              * @param link
              */
             public addSourceLink(link: PolicyLink<any>): void {
-                this.sourceLinks.push(link)
+                if (
+                    !this.sourceLinks.some((sourceLink) =>
+                        sourceLink.equals(link)
+                    )
+                ) {
+                    this.sourceLinks.push(link);
+                }
             }
 
             /**
@@ -301,7 +310,13 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
              * @param link
              */
             public addTargetLink(link: PolicyLink<any>): void {
-                this.targetLinks.push(link)
+                if (
+                    !this.targetLinks.some((targetLink) =>
+                        targetLink.equals(link)
+                    )
+                ) {
+                    this.targetLinks.push(link);
+                }
             }
 
             /**
@@ -342,6 +357,9 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
              * @param {IPolicyEvent} event
              */
             public async runAction(event: IPolicyEvent<any>): Promise<any> {
+                if (this.policyInstance.status === PolicyType.DISCONTINUED) {
+                    return;
+                }
                 const parent = this.parent as any;
                 if (parent && (typeof parent.changeStep === 'function')) {
                     await parent.changeStep(event.user, event.data, this);
@@ -468,7 +486,7 @@ export function BasicBlock<T>(options: Partial<PolicyBlockDecoratorOptions>) {
              * @param policyId
              * @param policy
              */
-            public setPolicyInstance(policyId: string, policy: any) {
+            public setPolicyInstance(policyId: string, policy: Policy) {
                 this.policyInstance = policy;
                 this.policyId = policyId;
                 if (this.policyInstance && this.policyInstance.status === PolicyType.DRY_RUN) {

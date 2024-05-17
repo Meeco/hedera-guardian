@@ -1,11 +1,12 @@
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws'
+
 import { IncomingMessage, Server } from 'http';
-import { Users } from '@helpers/users';
+import { Users } from '../../helpers/users.js';
 import { ExternalProviders, GenerateUUIDv4, MessageAPI, NotifyAPI, UserRole } from '@guardian/interfaces';
 import { generateNumberFromString, Logger, MeecoApprovedSubmission, MessageResponse, NatsService, NotificationHelper, Singleton } from '@guardian/common';
 import { NatsConnection } from 'nats';
 import { Injectable } from '@nestjs/common';
-import { MeecoAuth } from '@helpers/meeco';
+import { MeecoAuth } from '../../helpers/meeco.js';
 import { Mutex } from 'async-mutex';
 
 /**
@@ -48,7 +49,7 @@ export class WebSocketsService {
      * WebSocket server
      * @private
      */
-    private readonly wss: WebSocket.Server;
+    private readonly wss: WebSocketServer;
 
     private readonly clients = new Map();
 
@@ -68,7 +69,7 @@ export class WebSocketsService {
     private readonly notificationReadingMap: Set<string> = new Set();
 
     constructor(private readonly server: Server, cn: NatsConnection) {
-        this.wss = new WebSocket.Server({ server: this.server });
+        this.wss = new WebSocketServer({ server: this.server });
         this.channel = new WebSocketsServiceChannel();
         this.channel.setConnection(cn);
     }
@@ -173,7 +174,7 @@ export class WebSocketsService {
                     MessageAPI.SEND_STATUS,
                     // tslint:disable-next-line:no-shadowed-variable
                     (msg) => {
-                        const { name, state } = msg;
+                        const {name, state} = msg;
 
                         if (!statuses[name]) {
                             statuses[name] = [];
@@ -222,9 +223,20 @@ export class WebSocketsService {
             }
         }, 500);
 
+        this.channel.subscribe('update-record', async (msg) => {
+            this.wss.clients.forEach((client: any) => {
+                if (this.checkUserByDid(client, msg)) {
+                    this.send(client, {
+                        type: 'update-record-event',
+                        data: msg,
+                    });
+                }
+            });
+            return new MessageResponse({});
+        });
+
         this.channel.subscribe('update-block', async (msg) => {
             updateArray.push(msg);
-
             return new MessageResponse({});
         });
 

@@ -1,8 +1,8 @@
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { FieldModel } from './field.model';
-import { SchemaDocumentModel } from './schema-document.model';
+import { CompareOptions, IIdLvl } from '../interfaces/compare-options.interface.js';
+import { FieldModel } from './field.model.js';
+import { SchemaDocumentModel } from './schema-document.model.js';
 import { Policy, PolicyTool, Schema as SchemaCollection } from '@guardian/common';
-import { HashUtils } from '../utils/hash-utils';
+import { HashUtils } from '../utils/hash-utils.js';
 
 /**
  * Schema Model
@@ -54,7 +54,7 @@ export class SchemaModel {
      * Compare Options
      * @private
      */
-    private readonly options: ICompareOptions;
+    private readonly options: CompareOptions;
 
     /**
      * Schema Model
@@ -101,39 +101,55 @@ export class SchemaModel {
      * Compare Map
      * @private
      */
-    private readonly _compareMap: Map<string, number>;
+    private readonly _compareMap: Map<string, number> = new Map();
 
     constructor(
         schema: SchemaCollection,
-        options: ICompareOptions
+        options: CompareOptions
     ) {
         this.options = options;
-        this.id = '';
-        this.name = '';
-        this.uuid = '';
-        this.description = '';
-        this.topicId = '';
-        this.version = '';
-        this.iri = '';
-        this._weight = '';
-        this._weightDocument = '';
-        this._compareMap = new Map<string, number>();
-        if (schema) {
-            this.id = schema.id;
-            this.name = schema.name;
-            this.uuid = schema.uuid
-            this.description = schema.description;
-            this.topicId = schema.topicId;
-            this.version = schema.version || schema.sourceVersion;
-            this.iri = schema.iri;
-            if (schema.document) {
-                const document = (typeof schema.document === 'string') ?
-                    JSON.parse(schema.document) :
-                    schema.document;
-                this.document = new SchemaDocumentModel(document, 0, document?.$defs);
-                this.document.update(this.options);
-            }
+
+        this._weight = this._weightDocument = '';
+
+        if (!schema) {
+            this.id = this.name = this.uuid = this.description = this.topicId = this.version = this.iri = '';
+            return;
         }
+
+        const {
+            id = '',
+            name = '',
+            uuid = '',
+            description = '',
+            topicId = '',
+            version = '',
+            sourceVersion = '',
+            iri = '',
+            document = null
+        } = schema;
+
+        this.id = id;
+        this.name = name;
+        this.uuid = uuid;
+        this.description = description;
+        this.topicId = topicId;
+        this.version = version || sourceVersion;
+        this.iri = iri;
+        if (document) {
+            const parsedDocument = typeof document === 'string' ? JSON.parse(document) : document;
+            this.document = SchemaDocumentModel.from(parsedDocument);
+            this.document.update(this.options);
+        }
+    }
+
+    public static from(data: any, options: CompareOptions): SchemaModel {
+        return new SchemaModel({
+            id: data.$id,
+            name: data.title,
+            description: data.description,
+            iri: data.$id,
+            document: data
+        } as any, options);
     }
 
     /**
@@ -159,13 +175,13 @@ export class SchemaModel {
      * @param options - comparison options
      * @public
      */
-    public update(options: ICompareOptions): void {
+    public update(options: CompareOptions): void {
         const hashUtils: HashUtils = new HashUtils();
 
         hashUtils.reset();
         hashUtils.add(this.name || '');
         hashUtils.add(this.description || '');
-        if (options.idLvl > 0) {
+        if (options.idLvl === IIdLvl.All) {
             hashUtils.add(this.version || '');
             hashUtils.add(this.uuid || '');
             hashUtils.add(this.iri || '');
@@ -187,7 +203,7 @@ export class SchemaModel {
      * @param options - comparison options
      * @public
      */
-    public hash(options?: ICompareOptions): string {
+    public hash(options?: CompareOptions): string {
         return this._weight;
     }
 
@@ -253,5 +269,21 @@ export class SchemaModel {
         }
         this._compareMap.set(schema.iri, 0);
         return 0;
+    }
+
+    /**
+     * Convert class to object
+     * @public
+     */
+    public toObject(): any {
+        return {
+            id: this.id,
+            name: this.name,
+            uuid: this.uuid,
+            description: this.description,
+            topicId: this.topicId,
+            version: this.version,
+            iri: this.iri
+        };
     }
 }

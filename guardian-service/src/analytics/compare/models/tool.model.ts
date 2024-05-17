@@ -1,11 +1,11 @@
 import { PolicyTool } from '@guardian/common';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { BlockModel } from './block.model';
-import { VariableModel } from './variable.model';
-import { CompareUtils } from '../utils/utils';
-import { SchemaModel } from './schema.model';
-import { FileModel } from './file.model';
-import { IKeyMap } from '../interfaces/key-map.interface';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { BlockModel } from './block.model.js';
+import { VariableModel } from './variable.model.js';
+import { CompareUtils } from '../utils/utils.js';
+import { SchemaModel } from './schema.model.js';
+import { FileModel } from './file.model.js';
+import { IKeyMap } from '../interfaces/key-map.interface.js';
 
 /**
  * Tool Model
@@ -69,7 +69,7 @@ export class ToolModel {
      * Compare Options
      * @private
      */
-    private readonly options: ICompareOptions;
+    private readonly options: CompareOptions;
 
     /**
      * All Blocks
@@ -89,7 +89,7 @@ export class ToolModel {
      */
     private _artifacts: FileModel[];
 
-    constructor(tool: PolicyTool, options: ICompareOptions) {
+    constructor(tool: PolicyTool, options: CompareOptions) {
         this.options = options;
 
         this.id = tool.id;
@@ -130,7 +130,7 @@ export class ToolModel {
      * @param options - comparison options
      * @private
      */
-    private createInputEvents(variables: any[], options: ICompareOptions): VariableModel[] {
+    private createInputEvents(variables: any[], options: CompareOptions): VariableModel[] {
         const result: VariableModel[] = [];
         if (Array.isArray(variables)) {
             for (const json of variables) {
@@ -149,7 +149,7 @@ export class ToolModel {
      * @param options - comparison options
      * @private
      */
-    private createOutputEvents(variables: any[], options: ICompareOptions): VariableModel[] {
+    private createOutputEvents(variables: any[], options: CompareOptions): VariableModel[] {
         const result: VariableModel[] = [];
         if (Array.isArray(variables)) {
             for (const json of variables) {
@@ -168,7 +168,7 @@ export class ToolModel {
      * @param options - comparison options
      * @private
      */
-    private createVariables(variables: any[], options: ICompareOptions): VariableModel[] {
+    private createVariables(variables: any[], options: CompareOptions): VariableModel[] {
         const result: VariableModel[] = [];
         if (Array.isArray(variables)) {
             for (const json of variables) {
@@ -206,7 +206,7 @@ export class ToolModel {
      * @param options - comparison options
      * @public
      */
-    private updateAllBlocks(root: BlockModel, options: ICompareOptions): void {
+    private updateAllBlocks(root: BlockModel, options: CompareOptions): void {
         for (const child of root.children) {
             this.updateAllBlocks(child, options);
         }

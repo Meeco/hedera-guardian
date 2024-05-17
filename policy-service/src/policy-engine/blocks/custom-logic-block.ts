@@ -1,24 +1,30 @@
 import { Worker } from 'node:worker_threads';
 import path from 'path'
-import { ActionCallback, BasicBlock } from '@policy-engine/helpers/decorators';
-import { CatchErrors } from '@policy-engine/helpers/decorators/catch-errors';
-import { PolicyComponentsUtils } from '@policy-engine/policy-components-utils';
-import { IPolicyCalculateBlock, IPolicyDocument, IPolicyEventState } from '@policy-engine/policy-engine.interface';
-import {
-    VcHelper,
-    DIDDocument,
-    DIDMessage,
-    MessageAction,
-    MessageServer,
-    KeyType
-} from '@guardian/common';
-import { ArtifactType, GenerateUUIDv4, SchemaHelper } from '@guardian/interfaces';
-import { IPolicyEvent, PolicyInputEventType, PolicyOutputEventType } from '@policy-engine/interfaces';
-import { ChildrenType, ControlType, PropertyType } from '@policy-engine/interfaces/block-about';
-import { IPolicyUser } from '@policy-engine/policy-user';
-import { IHederaAccount, PolicyUtils } from '@policy-engine/helpers/utils';
-import { BlockActionError } from '@policy-engine/errors';
-import { ExternalDocuments, ExternalEvent, ExternalEventType } from '@policy-engine/interfaces/external-event';
+import { ActionCallback, BasicBlock } from '../helpers/decorators/index.js';
+import { CatchErrors } from '../helpers/decorators/catch-errors.js';
+import { PolicyComponentsUtils } from '../policy-components-utils.js';
+import { IPolicyCalculateBlock, IPolicyDocument, IPolicyEventState } from '../policy-engine.interface.js';
+import { DIDMessage, HederaDidDocument, MessageAction, MessageServer, VcHelper } from '@guardian/common';
+import { ArtifactType, SchemaHelper } from '@guardian/interfaces';
+import { IPolicyEvent, PolicyInputEventType, PolicyOutputEventType } from '../interfaces/index.js';
+import { ChildrenType, ControlType, PropertyType } from '../interfaces/block-about.js';
+import { IPolicyUser, UserCredentials } from '../policy-user.js';
+import { PolicyUtils } from '../helpers/utils.js';
+import { BlockActionError } from '../errors/index.js';
+import { ExternalDocuments, ExternalEvent, ExternalEventType } from '../interfaces/external-event.js';
+import { fileURLToPath } from 'url';
+
+const filename = fileURLToPath(import.meta.url);
+
+interface IMetadata {
+    owner: IPolicyUser;
+    id: string;
+    reference: string;
+    accounts: any;
+    tokens: any;
+    relationships: any[];
+    didDocument: HederaDidDocument;
+}
 
 /**
  * Custom logic block
@@ -106,7 +112,7 @@ export class CustomLogicBlock {
                     documents = [state.data];
                 }
 
-                let metadata: any;
+                let metadata: IMetadata;
                 if (ref.options.unsigned) {
                     metadata = null;
                 } else {
@@ -149,14 +155,17 @@ export class CustomLogicBlock {
                     artifacts.push(JSON.parse(artifactFile));
                 }
 
-                const worker = new Worker(path.join(path.dirname(__filename), '..', 'helpers', 'custom-logic-worker.js'), {
+                const importCode = `const [done, user, documents, mathjs, artifacts, formulajs] = arguments;\r\n`;
+                const expression = ref.options.expression || '';
+                const worker = new Worker(path.join(path.dirname(filename), '..', 'helpers', 'custom-logic-worker.js'), {
                     workerData: {
-                        execFunc: `const [done, user, documents, mathjs, artifacts] = arguments;${execCode}${ref.options.expression}`,
+                        execFunc: `${importCode}${execCode}${expression}`,
                         user,
                         documents,
                         artifacts
                     },
                 });
+
                 worker.on('error', (error) => {
                     reject(error);
                 });
@@ -183,7 +192,7 @@ export class CustomLogicBlock {
         documents: IPolicyDocument | IPolicyDocument[],
         user: IPolicyUser,
         ref: IPolicyCalculateBlock
-    ) {
+    ): Promise<IMetadata> {
         const isArray = Array.isArray(documents);
         const firstDocument = isArray ? documents[0] : documents;
         const owner = PolicyUtils.getDocumentOwner(ref, firstDocument);
@@ -228,25 +237,26 @@ export class CustomLogicBlock {
             }
         }
 
-        if (ref.options.idType !== 'DOCUMENT') {
-            id = await this.generateId(ref.options.idType, user);
-        }
-
-        let root: IHederaAccount;
+        let userCred: UserCredentials;
         switch (ref.options.documentSigner) {
             case 'owner':
-                root = await PolicyUtils.getHederaAccount(ref, owner.did);
+                userCred = await PolicyUtils.getUserCredentials(ref, owner.did);
                 break;
             case 'issuer':
                 const issuer = PolicyUtils.getDocumentIssuer(firstDocument.document);
-                root = await PolicyUtils.getHederaAccount(ref, issuer);
+                userCred = await PolicyUtils.getUserCredentials(ref, issuer);
                 break;
             default:
-                root = await PolicyUtils.getHederaAccount(ref, ref.policyOwner);
+                userCred = await PolicyUtils.getUserCredentials(ref, ref.policyOwner);
                 break;
         }
+        const didDocument = await userCred.loadDidDocument(ref);
 
-        return { owner, id, reference, accounts, tokens, relationships, root };
+        if (ref.options.idType !== 'DOCUMENT') {
+            id = await this.generateId(ref.options.idType, user, userCred);
+        }
+
+        return { owner, id, reference, accounts, tokens, relationships, didDocument };
     }
 
     /**
@@ -257,7 +267,7 @@ export class CustomLogicBlock {
      */
     private async createDocument(
         json: any,
-        metadata: any,
+        metadata: IMetadata,
         ref: IPolicyCalculateBlock
     ): Promise<IPolicyDocument> {
         const {
@@ -267,7 +277,7 @@ export class CustomLogicBlock {
             accounts,
             tokens,
             relationships,
-            root
+            didDocument
         } = metadata;
 
         // <-- new vc
@@ -291,7 +301,14 @@ export class CustomLogicBlock {
             throw new Error(JSON.stringify(res.error));
         }
 
-        const newVC = await VCHelper.createVC(root.did, root.hederaAccountKey, vcSubject);
+        const uuid = await ref.components.generateUUID();
+
+        const newVC = await VCHelper.createVerifiableCredential(
+            vcSubject,
+            didDocument,
+            null,
+            { uuid }
+        );
 
         const item = PolicyUtils.createVC(ref, owner, newVC);
         item.type = outputSchema.iri;
@@ -319,34 +336,36 @@ export class CustomLogicBlock {
 
     /**
      * Generate id
+     * Generate id
      * @param idType
      * @param user
-     * @param userHederaAccount
-     * @param userHederaKey
+     * @param userCred
+     * @param userHederaCred
      */
     private async generateId(
         idType: string,
-        user: IPolicyUser
+        user: IPolicyUser,
+        userCred: UserCredentials
     ): Promise<string | undefined> {
         const ref = PolicyComponentsUtils.GetBlockRef(this);
         try {
             if (idType === 'UUID') {
-                return GenerateUUIDv4();
+                return await ref.components.generateUUID();
             }
             if (idType === 'DID') {
                 const topic = await PolicyUtils.getOrCreateTopic(ref, 'root', null, null);
 
-                const didObject = await DIDDocument.create(null, topic.topicId);
-                const did = didObject.getDid();
-                const key = didObject.getPrivateKeyString();
+                const didObject = await ref.components.generateDID(topic.topicId);
 
                 const message = new DIDMessage(MessageAction.CreateDID);
                 message.setDocument(didObject);
 
-                const hederaAccount = await PolicyUtils.getHederaAccount(ref, user.did);
+                const hederaCred = await userCred.loadHederaCredentials(ref);
+                const signOptions = await userCred.loadSignOptions(ref);
                 const client = new MessageServer(
-                    hederaAccount.hederaAccountId,
-                    hederaAccount.hederaAccountKey,
+                    hederaCred.hederaAccountId,
+                    hederaCred.hederaAccountKey,
+                    signOptions,
                     ref.dryRun
                 );
                 const messageResult = await client
@@ -357,10 +376,9 @@ export class CustomLogicBlock {
                 item.messageId = messageResult.getId();
                 item.topicId = messageResult.getTopicId();
 
-                await ref.databaseServer.saveDid(item);
+                await userCred.saveSubDidDocument(ref, item, didObject);
 
-                await PolicyUtils.setAccountKey(ref, user.did, KeyType.KEY, did, key);
-                return did;
+                return didObject.getDid();
             }
             if (idType === 'OWNER') {
                 return user.did;

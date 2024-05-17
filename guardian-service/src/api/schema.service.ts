@@ -1,9 +1,32 @@
-import { ApiResponse } from '@api/helpers/api-response';
-import { emptyNotifier, initNotifier } from '@helpers/notifier';
+import { ApiResponse } from '../api/helpers/api-response.js';
+import { emptyNotifier, initNotifier } from '../helpers/notifier.js';
 import { Controller } from '@nestjs/common';
-import { DatabaseServer, Logger, MessageError, MessageResponse, RunFunctionAsync, Users } from '@guardian/common';
-import { ISchema, MessageAPI, ModuleStatus, SchemaCategory, SchemaHelper, SchemaStatus, TopicType, Schema, SchemaNode } from '@guardian/interfaces';
-import { checkForCircularDependency, copySchemaAsync, createSchemaAndArtifacts, deleteSchema, exportSchemas, findAndPublishSchema, getPageOptions, getSchemaCategory, importSchemaByFiles, importSchemasByMessages, importTagsByFiles, incrementSchemaVersion, prepareSchemaPreview, updateSchemaDefs } from './helpers';
+import { BinaryMessageResponse, DatabaseServer, GenerateBlocks, JsonToXlsx, Logger, MessageError, MessageResponse, RunFunctionAsync, Users, XlsxToJson } from '@guardian/common';
+import { ISchema, MessageAPI, ModuleStatus, Schema, SchemaCategory, SchemaHelper, SchemaNode, SchemaStatus, TopicType } from '@guardian/interfaces';
+import {
+    checkForCircularDependency,
+    copySchemaAsync,
+    createSchemaAndArtifacts,
+    deleteSchema,
+    exportSchemas,
+    findAndPublishSchema,
+    getPageOptions,
+    getSchemaCategory,
+    getSchemaTarget,
+    importSchemaByFiles,
+    importSchemasByMessages,
+    importSubTools,
+    importTagsByFiles,
+    incrementSchemaVersion,
+    prepareSchemaPreview,
+    previewToolByMessage,
+    updateSchemaDefs,
+    updateToolConfig
+} from './helpers/index.js';
+import { PolicyImportExportHelper } from '../policy-engine/helpers/policy-import-export-helper.js';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import process from 'process';
 
 @Controller()
 export class SchemaService { }
@@ -44,7 +67,7 @@ export async function schemaAPI(): Promise<void> {
     });
 
     ApiResponse(MessageAPI.COPY_SCHEMA_ASYNC, async (msg) => {
-        const {iri, topicId, name, owner, task} = msg;
+        const { iri, topicId, name, owner, task } = msg;
         const notifier = await initNotifier(task);
         RunFunctionAsync(async () => {
             const schema = await copySchemaAsync(iri, topicId, name, owner);
@@ -72,10 +95,12 @@ export async function schemaAPI(): Promise<void> {
                     throw new Error(`There is circular dependency in schema: ${item.iri}`);
                 }
                 item.name = msg.name;
+                // item.topicId = msg.topicId;
                 item.description = msg.description;
                 item.entity = msg.entity;
                 item.document = msg.document;
                 item.status = SchemaStatus.DRAFT;
+                item.errors = [];
                 SchemaHelper.setVersion(item, null, item.version);
                 SchemaHelper.updateIRI(item);
                 await DatabaseServer.updateSchema(item.id, item);
@@ -191,7 +216,7 @@ export async function schemaAPI(): Promise<void> {
 
             // tslint:disable-next-line:no-shadowed-variable
             const getChildrenTypes = (schema: any) => {
-                return (new Schema(schema)).fields.filter(field => field.isRef && field.type !== '#GeoJSON').map(field => field.type);
+                return (new Schema(schema)).fields.filter(field => field.isRef && field.type !== '#GeoJSON' && field.type !== '#SentinelHUB').map(field => field.type);
             }
             // tslint:disable-next-line:no-shadowed-variable
             const createNode = async (schema: any) => {
@@ -253,6 +278,21 @@ export async function schemaAPI(): Promise<void> {
             }
             if (msg.policyId) {
                 filter.category = SchemaCategory.POLICY;
+                const userPolicy = await DatabaseServer.getPolicyCache({
+                    id: msg.policyId,
+                    userId: msg.owner
+                });
+                if (userPolicy) {
+                    filter.cacheCollection = 'schemas';
+                    filter.cachePolicyId = msg.policyId;
+                    // tslint:disable-next-line:no-shadowed-variable
+                    const [items, count] =
+                        await DatabaseServer.getAndCountPolicyCacheData(
+                            filter,
+                            otherOptions
+                        );
+                    return new MessageResponse({ items, count });
+                }
                 const policy = await DatabaseServer.getPolicyById(msg.policyId);
                 filter.topicId = policy?.topicId;
             } else if (msg.moduleId) {
@@ -447,7 +487,7 @@ export async function schemaAPI(): Promise<void> {
      *
      * @returns {ISchema[]} - all schemas
      */
-    ApiResponse(MessageAPI.DELETE_SCHEMA, async (msg) => {
+    ApiResponse<any>(MessageAPI.DELETE_SCHEMA, async (msg) => {
         try {
             if (!msg) {
                 return new MessageError('Invalid delete schema parameter');
@@ -732,6 +772,9 @@ export async function schemaAPI(): Promise<void> {
     ApiResponse(MessageAPI.CREATE_SYSTEM_SCHEMA, async (msg) => {
         try {
             const schemaObject = msg as ISchema;
+            if (schemaObject.uuid) {
+                schemaObject.contextURL = `schema:${schemaObject.uuid}`;
+            }
             SchemaHelper.setVersion(schemaObject, null, null);
             SchemaHelper.updateIRI(schemaObject);
             schemaObject.status = SchemaStatus.DRAFT;
@@ -920,6 +963,9 @@ export async function schemaAPI(): Promise<void> {
                 return new MessageError('Invalid schema');
             }
             const schemaObject = msg as ISchema;
+            if (schemaObject.uuid) {
+                schemaObject.contextURL = `schema:${schemaObject.uuid}`;
+            }
             SchemaHelper.setVersion(schemaObject, null, null);
             SchemaHelper.updateIRI(schemaObject);
             schemaObject.status = SchemaStatus.DRAFT;
@@ -985,6 +1031,184 @@ export async function schemaAPI(): Promise<void> {
                 ]
             });
             return new MessageResponse(schema);
+        } catch (error) {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            return new MessageError(error);
+        }
+    });
+
+    /**
+     * Export schemas
+     */
+    ApiResponse(MessageAPI.SCHEMA_EXPORT_XLSX, async (msg) => {
+        try {
+            const { ids } = msg;
+            const schemas = await exportSchemas(ids);
+            const buffer = await JsonToXlsx.generate(schemas, [], []);
+            return new BinaryMessageResponse(buffer);
+        } catch (error) {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            return new MessageError(error);
+        }
+    });
+
+    /**
+     * Load schema by xlsx
+     */
+    ApiResponse(MessageAPI.SCHEMA_IMPORT_XLSX, async (msg) => {
+        try {
+            const { user, xlsx, topicId } = msg;
+            const notifier = emptyNotifier();
+
+            if (!xlsx) {
+                throw new Error('file in body is empty');
+            }
+            const { category, target } = await getSchemaTarget(topicId);
+            if (!target) {
+                throw new Error('Unknown target');
+            }
+
+            const users = new Users();
+            const owner = (await users.getUser(user.username))?.did;
+            const root = await users.getHederaAccount(owner);
+
+            const xlsxResult = await XlsxToJson.parse(Buffer.from(xlsx.data));
+            const { tools, errors } = await importSubTools(root, xlsxResult.getToolIds(), notifier);
+            for (const tool of tools) {
+                const subSchemas = await DatabaseServer.getSchemas({ topicId: tool.topicId });
+                xlsxResult.updateTool(tool, subSchemas);
+            }
+            xlsxResult.updateSchemas(false);
+            xlsxResult.updatePolicy(target);
+            xlsxResult.addErrors(errors);
+            GenerateBlocks.generate(xlsxResult);
+
+            const result = await importSchemaByFiles(
+                category,
+                owner,
+                xlsxResult.schemas,
+                topicId,
+                notifier,
+                true
+            );
+
+            if (category === SchemaCategory.TOOL) {
+                await updateToolConfig(target);
+                await DatabaseServer.updateTool(target);
+            } else if (category === SchemaCategory.POLICY) {
+                await PolicyImportExportHelper.updatePolicyComponents(target);
+            }
+
+            return new MessageResponse({
+                schemas: xlsxResult.schemas,
+                errors: result.errors
+            });
+        } catch (error) {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            return new MessageError(error);
+        }
+    });
+
+    /**
+     * Load schema by xlsx
+     */
+    ApiResponse(MessageAPI.SCHEMA_IMPORT_XLSX_ASYNC, async (msg) => {
+        const { user, xlsx, topicId, task } = msg;
+        const notifier = await initNotifier(task);
+        RunFunctionAsync(async () => {
+            const { category, target } = await getSchemaTarget(topicId);
+
+            if (!xlsx) {
+                throw new Error('file in body is empty');
+            }
+            if (!target) {
+                throw new Error('Unknown target');
+            }
+
+            new Logger().info(`Import policy by xlsx`, ['GUARDIAN_SERVICE']);
+            const users = new Users();
+            const owner = (await users.getUser(user.username))?.did;
+            const root = await users.getHederaAccount(owner);
+            notifier.start('File parsing');
+
+            const xlsxResult = await XlsxToJson.parse(Buffer.from(xlsx.data));
+            const { tools, errors } = await importSubTools(root, xlsxResult.getToolIds(), notifier);
+            for (const tool of tools) {
+                const subSchemas = await DatabaseServer.getSchemas({ topicId: tool.topicId });
+                xlsxResult.updateTool(tool, subSchemas);
+            }
+            xlsxResult.updateSchemas(false);
+            xlsxResult.updatePolicy(target);
+            xlsxResult.addErrors(errors);
+            GenerateBlocks.generate(xlsxResult);
+            const result = await importSchemaByFiles(
+                category,
+                owner,
+                xlsxResult.schemas,
+                topicId,
+                notifier,
+                true
+            );
+
+            if (category === SchemaCategory.TOOL) {
+                await updateToolConfig(target);
+                await DatabaseServer.updateTool(target);
+            } else if (category === SchemaCategory.POLICY) {
+                await PolicyImportExportHelper.updatePolicyComponents(target);
+            }
+
+            notifier.result({
+                schemas: xlsxResult.schemas,
+                errors: result.errors
+            });
+        }, async (error) => {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            notifier.error(error);
+        });
+        return new MessageResponse(task);
+    });
+
+    /**
+     * Preview schema by xlsx
+     */
+    ApiResponse(MessageAPI.SCHEMA_IMPORT_XLSX_PREVIEW, async (msg) => {
+        try {
+            const { xlsx } = msg;
+            if (!xlsx) {
+                throw new Error('file in body is empty');
+            }
+            const xlsxResult = await XlsxToJson.parse(Buffer.from(xlsx.data));
+            for (const toolId of xlsxResult.getToolIds()) {
+                try {
+                    const tool = await previewToolByMessage(toolId.messageId);
+                    xlsxResult.updateTool(tool.tool, tool.schemas);
+                } catch (error) {
+                    xlsxResult.addErrors([{
+                        text: `Failed to load tool (${toolId.messageId})`,
+                        worksheet: toolId.worksheet,
+                        message: error?.toString()
+                    }]);
+                }
+            }
+            xlsxResult.updateSchemas(false);
+            GenerateBlocks.generate(xlsxResult);
+
+            return new MessageResponse(xlsxResult.toJson());
+        } catch (error) {
+            new Logger().error(error, ['GUARDIAN_SERVICE']);
+            return new MessageError(error);
+        }
+    });
+
+    /**
+     * Preview schema by xlsx
+     */
+    ApiResponse(MessageAPI.GET_TEMPLATE, async (msg) => {
+        try {
+            const { filename } = msg;
+            const filePath = path.join(process.cwd(), 'artifacts', filename);
+            const file = await readFile(filePath);
+            return new BinaryMessageResponse(file.buffer);
         } catch (error) {
             new Logger().error(error, ['GUARDIAN_SERVICE']);
             return new MessageError(error);

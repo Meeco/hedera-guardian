@@ -1,17 +1,17 @@
 import { Policy } from '@guardian/common';
-import { BlockModel } from './block.model';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { SchemaModel } from './schema.model';
-import { IKeyMap } from '../interfaces/key-map.interface';
-import { PropertyModel } from './property.model';
-import { PropertyType } from '../types/property.type';
-import { TokenModel } from './token.model';
-import { GroupModel } from './group.model';
-import { TopicModel } from './topic.model';
-import { TemplateTokenModel } from './template-token.model';
-import { RoleModel } from './role.model';
-import { FileModel } from './file.model';
-import { CompareUtils } from '../utils/utils';
+import { BlockModel } from './block.model.js';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { SchemaModel } from './schema.model.js';
+import { IKeyMap } from '../interfaces/key-map.interface.js';
+import { PropertyModel } from './property.model.js';
+import { PropertyType } from '../types/property.type.js';
+import { TokenModel } from './token.model.js';
+import { GroupModel } from './group.model.js';
+import { TopicModel } from './topic.model.js';
+import { TemplateTokenModel } from './template-token.model.js';
+import { RoleModel } from './role.model.js';
+import { FileModel } from './file.model.js';
+import { CompareUtils } from '../utils/utils.js';
 
 /**
  * Policy Model
@@ -81,7 +81,7 @@ export class PolicyModel {
      * Compare Options
      * @private
      */
-    public readonly options: ICompareOptions;
+    public readonly options: CompareOptions;
 
     /**
      * All Blocks
@@ -107,7 +107,7 @@ export class PolicyModel {
      */
     private _tokens: TokenModel[];
 
-    constructor(policy: Policy, options: ICompareOptions) {
+    constructor(policy: Policy, options: CompareOptions) {
         this.options = options;
 
         this.id = policy.id;
@@ -149,7 +149,7 @@ export class PolicyModel {
      * @param options - comparison options
      * @public
      */
-    private updateAllBlocks(root: BlockModel, options: ICompareOptions): void {
+    private updateAllBlocks(root: BlockModel, options: CompareOptions): void {
         for (const child of root.children) {
             this.updateAllBlocks(child, options);
         }
@@ -162,7 +162,7 @@ export class PolicyModel {
      * @param options - comparison options
      * @private
      */
-    private createRoles(roles: string[], options: ICompareOptions): RoleModel[] {
+    private createRoles(roles: string[], options: CompareOptions): RoleModel[] {
         const result: RoleModel[] = [];
         if (Array.isArray(roles)) {
             for (const json of roles) {
@@ -180,7 +180,7 @@ export class PolicyModel {
      * @param options - comparison options
      * @private
      */
-    private createGroups(groups: any[], options: ICompareOptions): GroupModel[] {
+    private createGroups(groups: any[], options: CompareOptions): GroupModel[] {
         const result: GroupModel[] = [];
         if (Array.isArray(groups)) {
             for (const json of groups) {
@@ -198,7 +198,7 @@ export class PolicyModel {
      * @param options - comparison options
      * @private
      */
-    private createTopics(topics: any[], options: ICompareOptions): TopicModel[] {
+    private createTopics(topics: any[], options: CompareOptions): TopicModel[] {
         const result: TopicModel[] = [];
         if (Array.isArray(topics)) {
             for (const json of topics) {
@@ -216,7 +216,7 @@ export class PolicyModel {
      * @param options - comparison options
      * @private
      */
-    private createTokens(tokens: any[], options: ICompareOptions): TemplateTokenModel[] {
+    private createTokens(tokens: any[], options: CompareOptions): TemplateTokenModel[] {
         const result: TemplateTokenModel[] = [];
         if (Array.isArray(tokens)) {
             for (const json of tokens) {

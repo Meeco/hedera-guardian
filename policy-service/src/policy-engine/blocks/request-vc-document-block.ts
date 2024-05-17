@@ -1,15 +1,15 @@
-import { CheckResult, GenerateUUIDv4, removeObjectProperties, Schema, SchemaHelper } from '@guardian/interfaces';
-import { PolicyUtils } from '@policy-engine/helpers/utils';
-import { BlockActionError } from '@policy-engine/errors';
-import { ActionCallback, StateField } from '@policy-engine/helpers/decorators';
-import { AnyBlockType, IPolicyDocument, IPolicyEventState, IPolicyRequestBlock, IPolicyValidatorBlock } from '@policy-engine/policy-engine.interface';
-import { IPolicyEvent, PolicyInputEventType, PolicyOutputEventType } from '@policy-engine/interfaces';
-import { ChildrenType, ControlType } from '@policy-engine/interfaces/block-about';
-import { EventBlock } from '@policy-engine/helpers/decorators/event-block';
-import { DIDDocument, DIDMessage, KeyType, MessageAction, MessageServer, VcDocument as VcDocumentCollection, VcHelper, } from '@guardian/common';
-import { PolicyComponentsUtils } from '@policy-engine/policy-components-utils';
-import { IPolicyUser } from '@policy-engine/policy-user';
-import { ExternalDocuments, ExternalEvent, ExternalEventType } from '@policy-engine/interfaces/external-event';
+import { CheckResult, removeObjectProperties, Schema, SchemaHelper } from '@guardian/interfaces';
+import { PolicyUtils } from '../helpers/utils.js';
+import { BlockActionError } from '../errors/index.js';
+import { ActionCallback, StateField } from '../helpers/decorators/index.js';
+import { AnyBlockType, IPolicyDocument, IPolicyEventState, IPolicyRequestBlock, IPolicyValidatorBlock } from '../policy-engine.interface.js';
+import { IPolicyEvent, PolicyInputEventType, PolicyOutputEventType } from '../interfaces/index.js';
+import { ChildrenType, ControlType } from '../interfaces/block-about.js';
+import { EventBlock } from '../helpers/decorators/event-block.js';
+import { DIDMessage, MessageAction, MessageServer, VcDocument as VcDocumentCollection, VcHelper, } from '@guardian/common';
+import { PolicyComponentsUtils } from '../policy-components-utils.js';
+import { IPolicyUser, UserCredentials } from '../policy-user.js';
+import { ExternalDocuments, ExternalEvent, ExternalEventType } from '../interfaces/external-event.js';
 import deepEqual from 'deep-equal';
 
 /**
@@ -134,7 +134,7 @@ export class RequestVcDocumentBlock {
         return {
             id: ref.uuid,
             blockType: ref.blockType,
-            schema: this._schema,
+            schema: { ...this._schema, fields: [], conditions: [] },
             presetSchema: options.presetSchema,
             presetFields: options.presetFields,
             uiMetaData: options.uiMetaData || {},
@@ -193,12 +193,13 @@ export class RequestVcDocumentBlock {
 
             const _vcHelper = new VcHelper();
             const idType = ref.options.idType;
-            const hederaAccount = await PolicyUtils.getHederaAccount(ref, user.did);
+            const userCred = await PolicyUtils.getUserCredentials(ref, user.did);
+            const didDocument = await userCred.loadDidDocument(ref);
+
             const id = await this.generateId(
                 idType,
                 user,
-                hederaAccount.hederaAccountId,
-                hederaAccount.hederaAccountKey
+                userCred
             );
             const credentialSubject = document;
             credentialSubject.policyId = ref.policyId;
@@ -221,18 +222,16 @@ export class RequestVcDocumentBlock {
             }
 
             const groupContext = await PolicyUtils.getGroupContext(ref, user);
-            const vc = await _vcHelper.createVC(
-                user.did,
-                hederaAccount.hederaAccountKey,
+            const uuid = await ref.components.generateUUID();
+            const vc = await _vcHelper.createVerifiableCredential(
                 credentialSubject,
-                groupContext
+                didDocument,
+                null,
+                { uuid, group: groupContext }
             );
             let item = PolicyUtils.createVC(ref, user, vc);
-            const accounts = PolicyUtils.getHederaAccounts(
-                vc,
-                hederaAccount.hederaAccountId,
-                this._schema
-            );
+
+            const accounts = PolicyUtils.getHederaAccounts(vc, userCred.hederaAccountId, this._schema);
             const schemaIRI = ref.options.schema;
             item.type = schemaIRI;
             item.schema = schemaIRI;
@@ -288,26 +287,33 @@ export class RequestVcDocumentBlock {
      * Generate id
      * @param idType
      * @param user
-     * @param userHederaAccount
-     * @param userHederaKey
+     * @param userCred
      */
-    async generateId(idType: string, user: IPolicyUser, userHederaAccount: string, userHederaKey: string): Promise<string | undefined> {
+    async generateId(
+        idType: string,
+        user: IPolicyUser,
+        userCred: UserCredentials
+    ): Promise<string | undefined> {
         const ref = PolicyComponentsUtils.GetBlockRef(this);
         try {
             if (idType === 'UUID') {
-                return GenerateUUIDv4();
+                return await ref.components.generateUUID();
             }
             if (idType === 'DID') {
                 const topic = await PolicyUtils.getOrCreateTopic(ref, 'root', null, null);
-
-                const didObject = await DIDDocument.create(null, topic.topicId);
-                const did = didObject.getDid();
-                const key = didObject.getPrivateKeyString();
+                const didObject = await ref.components.generateDID(topic.topicId);
 
                 const message = new DIDMessage(MessageAction.CreateDID);
                 message.setDocument(didObject);
 
-                const client = new MessageServer(userHederaAccount, userHederaKey, ref.dryRun);
+                const userHederaCred = await userCred.loadHederaCredentials(ref);
+                const signOptions = await userCred.loadSignOptions(ref);
+                const client = new MessageServer(
+                    userHederaCred.hederaAccountId,
+                    userHederaCred.hederaAccountKey,
+                    signOptions,
+                    ref.dryRun
+                );
                 const messageResult = await client
                     .setTopicObject(topic)
                     .sendMessage(message);
@@ -316,10 +322,9 @@ export class RequestVcDocumentBlock {
                 item.messageId = messageResult.getId();
                 item.topicId = messageResult.getTopicId();
 
-                await ref.databaseServer.saveDid(item);
+                await userCred.saveSubDidDocument(ref, item, didObject);
 
-                await PolicyUtils.setAccountKey(ref, user.did, KeyType.KEY, did, key);
-                return did;
+                return didObject.getDid();
             }
             if (idType === 'OWNER') {
                 return user.did;

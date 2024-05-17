@@ -1,5 +1,5 @@
 import { Controller, Get, HttpCode, HttpException, HttpStatus, Req, Response } from '@nestjs/common';
-import { ReportService } from '../analytics/report.service';
+import { ReportService } from '../analytics/report.service.js';
 import {
     ApiExtraModels,
     ApiInternalServerErrorResponse,
@@ -9,10 +9,10 @@ import {
     ApiTags,
     getSchemaPath
 } from '@nestjs/swagger';
-import { InternalServerErrorDTO } from '@middlewares/validation/schemas/errors';
-import { ReportDTO } from '@middlewares/validation/schemas/report';
-import { DashboardDTO } from '@middlewares/validation/schemas/dashboard';
-import { DataContainerDTO } from '@middlewares/validation/schemas/report-data';
+import { InternalServerErrorDTO } from '../middlewares/validation/schemas/errors.js';
+import { ReportDTO } from '../middlewares/validation/schemas/report.js';
+import { DashboardDTO } from '../middlewares/validation/schemas/dashboard.js';
+import { DataContainerDTO } from '../middlewares/validation/schemas/report-data.js';
 
 /**
  * Analytics Api
@@ -44,7 +44,10 @@ export class AnalyticsApi {
     @Get('/report')
     async getCurrentReport(@Req() req: any, @Response() res: any): Promise<any> {
         try {
-            const report = await ReportService.getCurrentReport();
+            const report = await ReportService.getCurrentReport(
+                ReportService.getRootTopic(),
+                ReportService.getRestartDate()
+            );
             return res.json(report);
         } catch (error) {
             throw error;
@@ -75,7 +78,10 @@ export class AnalyticsApi {
     @Get('/report/update')
     async updateReport(@Req() req: any, @Response() res: any): Promise<any> {
         try {
-            const result = await ReportService.run(process.env.INITIALIZATION_TOPIC_ID);
+            const result = await ReportService.run(
+                ReportService.getRootTopic(),
+                ReportService.getRestartDate()
+            );
             return res.json(result);
         } catch (error) {
             throw error;

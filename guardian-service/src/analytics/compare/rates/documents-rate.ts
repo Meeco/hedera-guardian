@@ -1,12 +1,12 @@
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { IRate } from '../interfaces/rate.interface';
-import { Rate } from './rate';
-import { DocumentModel } from '../models/document.model';
-import { CompareUtils } from '../utils/utils';
-import { IRateMap } from '../interfaces/rate-map.interface';
-import { Status } from '../types/status.type';
-import { PropertyModel } from '../models/property.model';
-import { PropertiesRate } from './properties-rate';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { Rate } from './rate.js';
+import { DocumentModel } from '../models/document.model.js';
+import { CompareUtils } from '../utils/utils.js';
+import { IRateMap } from '../interfaces/rate-map.interface.js';
+import { Status } from '../types/status.type.js';
+import { PropertyModel } from '../models/property.model.js';
+import { PropertiesRate } from './properties-rate.js';
 
 /**
  * Calculates the difference between two Documents
@@ -87,7 +87,7 @@ export class DocumentsRate extends Rate<DocumentModel> {
     private compareDocuments(
         document1: DocumentModel,
         document2: DocumentModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: string[] = [];
         const map: { [key: string]: IRateMap<PropertyModel<any>> } = {};
@@ -133,7 +133,7 @@ export class DocumentsRate extends Rate<DocumentModel> {
     private compareOptions(
         document1: DocumentModel,
         document2: DocumentModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: string[] = [];
         const map: { [key: string]: IRateMap<PropertyModel<any>> } = {};
@@ -174,7 +174,7 @@ export class DocumentsRate extends Rate<DocumentModel> {
      * @param options - comparison options
      * @public
      */
-    public override calc(options: ICompareOptions): void {
+    public override calc(options: CompareOptions): void {
         const document1 = this.left;
         const document2 = this.right;
 

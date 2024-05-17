@@ -1,8 +1,9 @@
 {
     "name": "api-tests",
-    "version": "2.19.0",
+    "version": "2.24.1",
     "description": "API Tests",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "test": "mocha index.js",
         "test:ci": "mocha index.js --reporter mocha-junit-reporter --reporter-options mochaFile=../test_results/api-tests.xml"

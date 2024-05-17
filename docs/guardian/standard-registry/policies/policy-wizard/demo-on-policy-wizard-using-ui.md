@@ -1,5 +1,10 @@
 # 💻 Demo on Policy Wizard using UI
 
+1. [Step By Step Process](demo-on-policy-wizard-using-ui.md#id-1.-step-by-step-process)
+2. [Demo Video](demo-on-policy-wizard-using-ui.md#id-2.-demo-video)
+
+## 1. Step By Step Process
+
 There are two ways to open Policy Wizard:
 
 1. Click on Policy Wizard button from Policies Tab as shown below:
@@ -48,7 +53,7 @@ If **Approve and Reject** and **Minting tokens** are set to _enable_ the corresp
 Note: We can select multiple schemas by entering the schemas names separated by a delimiter: ",".
 {% endhint %}
 
-<figure><img src="../../../../.gitbook/assets/image (17).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../../.gitbook/assets/image (17) (1) (1) (1) (1) (1) (1) (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 #### 3.1.1 {role} configuration
 
@@ -88,3 +93,7 @@ After the policy in the wizard is configured, users can click on ‘Create’ an
 Next time, when the wizard is opened a dialog with the selector of wizard states would be displayed, where we can select respective policy and restore progress.
 
 <figure><img src="../../../../.gitbook/assets/image (25) (4).png" alt=""><figcaption></figcaption></figure>
+
+## 2. Demo Video
+
+[Youtube](https://youtu.be/sJFfkQ49JnI?si=yPEwfZBA2eWwIkwu\&t=130)

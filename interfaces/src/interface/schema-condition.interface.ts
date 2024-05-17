@@ -1,4 +1,4 @@
-import { SchemaField } from './schema-field.interface';
+import { SchemaField } from './schema-field.interface.js';
 
 /**
  * Schema condition
@@ -25,4 +25,8 @@ export interface SchemaCondition {
      * 'else' fields
      */
     elseFields: SchemaField[];
+    /**
+     * Errors
+     */
+    errors?: any[];
 }

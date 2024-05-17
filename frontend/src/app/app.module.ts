@@ -8,6 +8,7 @@ import { ToastrModule } from 'ngx-toastr';
 import { AppRoutingModule, AuditorGuard, StandardRegistryGuard, UserGuard } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { SchemaHelper } from '@guardian/interfaces';
+import { CheckboxModule } from 'primeng/checkbox';
 //Services
 import { AuthInterceptor, AuthService } from './services/auth.service';
 import { ProfileService } from './services/profile.service';
@@ -56,6 +57,7 @@ import { BrandingComponent } from './views/branding/branding.component';
 import { StandardRegistryCardComponent } from './components/standard-registry-card/standard-registry-card.component';
 import { SuggestionsConfigurationComponent } from './views/suggestions-configuration/suggestions-configuration.component';
 import { NotificationComponent } from './components/notification/notification.component';
+import { TokenDialogComponent } from './components/token-dialog/token-dialog.component';
 //Modules
 import { MaterialModule } from './modules/common/material.module';
 import { PolicyEngineModule } from './modules/policy-engine/policy-engine.module';
@@ -64,7 +66,7 @@ import { CommonComponentsModule } from './modules/common/common-components.modul
 import { TagEngineModule } from './modules/tag-engine/tag-engine.module';
 import { SchemaEngineModule } from './modules/schema-engine/schema-engine.module'
 import { ThemeService } from './services/theme.service';
-import { ContractEngineModule } from './modules/contract-engine/contract-engine.module';
+import { RecordService } from './services/record.service';
 // Injectors
 import { GET_SCHEMA_NAME } from './injectors/get-schema-name.injector';
 import { BLOCK_TYPE_TIPS, BLOCK_TYPE_TIPS_VALUE, } from './injectors/block-type-tips.injector';
@@ -75,6 +77,47 @@ import { MeecoVCSubmitDialogComponent } from './components/meeco-vc-submit-dialo
 import { AboutViewComponent } from './views/admin/about-view/about-view.component';
 import { CompareStorage } from './services/compare-storage.service';
 import { ToolsService } from './services/tools.service';
+import { NewHeaderComponent } from './views/new-header/new-header.component';
+import { SearchResultCardComponent } from './components/search-result-card/search-result-card.component';
+import { PolicyAISearchComponent } from './views/policy-search/policy-ai-search/policy-ai-search.component';
+import { PolicyGuidedSearchComponent } from './views/policy-search/policy-guided-search/policy-guided-search.component';
+import { PolicySearchComponent } from './views/policy-search/policy-search.component';
+import { ListOfTokensUserComponent } from './views/list-of-tokens-user/list-of-tokens-user.component';
+
+// PrimeNG
+import { InputTextModule } from 'primeng/inputtext';
+import { SelectButtonModule } from 'primeng/selectbutton';
+import { DropdownModule } from 'primeng/dropdown';
+import { TableModule } from 'primeng/table';
+import { DialogModule } from 'primeng/dialog';
+import { TagModule } from 'primeng/tag';
+import { ButtonModule } from 'primeng/button';
+import { TooltipModule } from 'primeng/tooltip';
+import { StepsModule } from 'primeng/steps';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TabViewModule } from 'primeng/tabview';
+import { DynamicDialogModule } from 'primeng/dynamicdialog';
+import { ColorPickerModule } from 'primeng/colorpicker';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import { AISearchService } from './services/ai-search.service';
+import { DndModule } from 'ngx-drag-drop';
+import { PasswordModule } from 'primeng/password';
+import { RegisterDialogComponent } from './views/login/register-dialogs/register-dialog/register-dialog.component';
+import { TermsConditionsComponent } from './views/login/register-dialogs/terms-conditions-dialog/terms-conditions.component';
+import { AccountTypeSelectorDialogComponent } from './views/login/register-dialogs/account-type-selector-dialog/account-type-selector-dialog.component';
+import { ForgotPasswordDialogComponent } from './views/login/forgot-password-dialog/forgot-password-dialog.component';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { RadioButtonModule } from 'primeng/radiobutton';
+import { CalendarModule } from 'primeng/calendar';
+import { InputTextareaModule } from 'primeng/inputtextarea';
+import { ContractEngineModule } from './modules/contract-engine/contract-engine.module';
+import { ProjectComparisonService } from './services/project-comparison.service';
+import { ProjectComparisonModule } from './modules/project-comparison/project-comparison.module';
+import { AngularSvgIconModule } from 'angular-svg-icon';
+// Prototypes
+import '../prototypes/date-prototype';
+import { OnlyForDemoDirective } from './directives/onlyfordemo.directive';
+import { UseWithServiceDirective } from './directives/use-with-service.directive';
 
 @NgModule({
     declarations: [
@@ -104,6 +147,19 @@ import { ToolsService } from './services/tools.service';
         NotificationsComponent,
         QrCodeDialogComponent,
         MeecoVCSubmitDialogComponent,
+        NewHeaderComponent,
+        PolicySearchComponent,
+        PolicyGuidedSearchComponent,
+        PolicyAISearchComponent,
+        SearchResultCardComponent,
+        ListOfTokensUserComponent,
+        RegisterDialogComponent,
+        TermsConditionsComponent,
+        AccountTypeSelectorDialogComponent,
+        ForgotPasswordDialogComponent,
+        OnlyForDemoDirective,
+        TokenDialogComponent,
+        UseWithServiceDirective,
     ],
     imports: [
         BrowserModule,
@@ -121,6 +177,31 @@ import { ToolsService } from './services/tools.service';
         ToastrModule.forRoot(),
         HttpClientJsonpModule,
         QRCodeModule,
+        ButtonModule,
+        InputTextModule,
+        SelectButtonModule,
+        DropdownModule,
+        ButtonModule,
+        DialogModule,
+        TagModule,
+        TableModule,
+        TooltipModule,
+        StepsModule,
+        ProgressBarModule,
+        TabViewModule,
+        DynamicDialogModule,
+        ColorPickerModule,
+        ProgressSpinnerModule,
+        PasswordModule,
+        MultiSelectModule,
+        RadioButtonModule,
+        CalendarModule,
+        InputTextareaModule,
+        ContractEngineModule,
+        ProjectComparisonModule,
+        DndModule,
+        CheckboxModule,
+        AngularSvgIconModule.forRoot()
     ],
     exports: [],
     providers: [
@@ -152,7 +233,10 @@ import { ToolsService } from './services/tools.service';
         WizardService,
         SuggestionsService,
         NotificationService,
+        AISearchService,
+        RecordService,
         CompareStorage,
+        ProjectComparisonService,
         {
             provide: GET_SCHEMA_NAME,
             useValue: SchemaHelper.getSchemaName
@@ -170,7 +254,7 @@ import { ToolsService } from './services/tools.service';
             provide: HTTP_INTERCEPTORS,
             useClass: AuthInterceptor,
             multi: true,
-        },
+        }
     ],
     bootstrap: [AppComponent],
 })

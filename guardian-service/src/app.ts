@@ -1,17 +1,18 @@
-import { configAPI } from '@api/config.service';
-import { documentsAPI } from '@api/documents.service';
-import { loaderAPI } from '@api/loader.service';
-import { profileAPI } from '@api/profile.service';
-import { schemaAPI } from '@api/schema.service';
-import { tokenAPI } from '@api/token.service';
-import { trustChainAPI } from '@api/trust-chain.service';
-import { PolicyEngineService } from '@policy-engine/policy-engine.service';
+import { configAPI } from './api/config.service.js';
+import { documentsAPI } from './api/documents.service.js';
+import { loaderAPI } from './api/loader.service.js';
+import { profileAPI } from './api/profile.service.js';
+import { schemaAPI } from './api/schema.service.js';
+import { tokenAPI } from './api/token.service.js';
+import { trustChainAPI } from './api/trust-chain.service.js';
+import { PolicyEngineService } from './policy-engine/policy-engine.service.js';
 import {
     ApplicationState,
     Branding,
     COMMON_CONNECTION_CONFIG,
     Contract,
     DataBaseHelper,
+    DatabaseServer,
     DidDocument,
     entities,
     Environment,
@@ -41,33 +42,36 @@ import {
     WiperRequest,
     Workers
 } from '@guardian/common';
-import { ApplicationStates, WorkerTaskType } from '@guardian/interfaces';
+import { ApplicationStates, PolicyEvents, PolicyType, WorkerTaskType } from '@guardian/interfaces';
 import { AccountId, PrivateKey, TopicId } from '@hashgraph/sdk';
-import { ipfsAPI } from '@api/ipfs.service';
-import { artifactAPI } from '@api/artifact.service';
-import { sendKeysToVault } from '@helpers/send-keys-to-vault';
-import { contractAPI, syncRetireContracts, syncWipeContracts } from '@api/contract.service';
-import { PolicyServiceChannelsContainer } from '@helpers/policy-service-channels-container';
-import { PolicyEngine } from '@policy-engine/policy-engine';
-import { modulesAPI } from '@api/module.service';
-import { toolsAPI } from '@api/tool.service';
-import { GuardiansService } from '@helpers/guardians';
-import { mapAPI } from '@api/map.service';
-import { tagsAPI } from '@api/tag.service';
-import { setDefaultSchema } from '@api/helpers/schema-helper';
-import { demoAPI } from '@api/demo.service';
-import { themeAPI } from '@api/theme.service';
-import { brandingAPI } from '@api/branding.service';
-import { wizardAPI } from '@api/wizard.service';
-import { startMetricsServer } from './utils/metrics';
+import { ipfsAPI } from './api/ipfs.service.js';
+import { artifactAPI } from './api/artifact.service.js';
+import { sendKeysToVault } from './helpers/send-keys-to-vault.js';
+import { contractAPI, syncRetireContracts, syncWipeContracts } from './api/contract.service.js';
+import { PolicyServiceChannelsContainer } from './helpers/policy-service-channels-container.js';
+import { PolicyEngine } from './policy-engine/policy-engine.js';
+import { modulesAPI } from './api/module.service.js';
+import { toolsAPI } from './api/tool.service.js';
+import { GuardiansService } from './helpers/guardians.js';
+import { mapAPI } from './api/map.service.js';
+import { tagsAPI } from './api/tag.service.js';
+import { setDefaultSchema } from './api/helpers/schema-helper.js';
+import { demoAPI } from './api/demo.service.js';
+import { themeAPI } from './api/theme.service.js';
+import { brandingAPI } from './api/branding.service.js';
+import { wizardAPI } from './api/wizard.service.js';
+import { startMetricsServer } from './utils/metrics.js';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import process from 'process';
-import { AppModule } from './app.module';
-import { analyticsAPI } from '@api/analytics.service';
+import { AppModule } from './app.module.js';
+import { analyticsAPI } from './api/analytics.service.js';
 import { GridFSBucket } from 'mongodb';
-import { suggestionsAPI } from '@api/suggestions.service';
-import { SynchronizationTask } from '@helpers/synchronization-task';
+import { suggestionsAPI } from './api/suggestions.service.js';
+import { SynchronizationTask } from './helpers/synchronization-task.js';
+import { recordAPI } from './api/record.service.js';
+import { projectsAPI } from './api/projects.service.js';
+import { AISuggestionsService } from './helpers/ai-suggestions.js';
 
 export const obj = {};
 
@@ -90,7 +94,11 @@ Promise.all([
         'v2-11-0',
         'v2-12-0',
         'v2-13-0',
-        'v2-16-0'
+        'v2-16-0',
+        'v2-17-0',
+        'v2-18-0',
+        'v2-20-0',
+        'v2-23-1',
     ]),
     MessageBrokerChannel.connect('GUARDIANS_SERVICE'),
     NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
@@ -109,6 +117,7 @@ Promise.all([
     app.listen();
 
     DataBaseHelper.orm = db;
+
     DataBaseHelper.gridFS = new GridFSBucket(db.em.getDriver().getConnection().getDb());
     new PolicyServiceChannelsContainer().setConnection(cn);
     new TransactionLogger().initialization(
@@ -133,6 +142,7 @@ Promise.all([
         })
 
     }
+    await new AISuggestionsService().setConnection(cn).init();
 
     await state.updateState(ApplicationStates.STARTED);
 
@@ -173,8 +183,10 @@ Promise.all([
         await mapAPI();
         await themeAPI();
         await wizardAPI();
+        await recordAPI();
         await brandingAPI(brandingRepository);
-        await suggestionsAPI()
+        await suggestionsAPI();
+        await projectsAPI();
     } catch (error) {
         console.error(error.message);
         process.exit(0);
@@ -243,7 +255,7 @@ Promise.all([
             return false;
         }
         try {
-            if (process.env.INITIALIZATION_TOPIC_KEY) {
+            if (process.env.INITIALIZATION_TOPIC_ID) {
                 // if (!/^\d+\.\d+\.\d+/.test(settingsContainer.settings.INITIALIZATION_TOPIC_ID)) {
                 //     throw new Error(settingsContainer.settings.INITIALIZATION_TOPIC_ID + 'is wrong');
                 // }
@@ -266,6 +278,7 @@ Promise.all([
 
         return true;
     });
+    let policyEngine: PolicyEngine;
     validator.setValidAction(async () => {
         if (!process.env.INITIALIZATION_TOPIC_ID && process.env.HEDERA_NET === 'localnode') {
             process.env.INITIALIZATION_TOPIC_ID = await workersHelper.addRetryableTask({
@@ -282,7 +295,7 @@ Promise.all([
         state.updateState(ApplicationStates.INITIALIZING);
 
         try {
-            const policyEngine = new PolicyEngine();
+            policyEngine = new PolicyEngine();
             await policyEngine.setConnection(cn).init();
             const policyService = new PolicyEngineService(cn);
             await policyService.init();
@@ -360,6 +373,41 @@ Promise.all([
         channel
     );
     wipeSync.start();
+    const policyDiscontinueTask = new SynchronizationTask(
+        'policy-discontinue',
+        async () => {
+            const date = new Date();
+            const policiesToDiscontunie = await policyRepository.find({
+                discontinuedDate: { $lte: date },
+                status: PolicyType.PUBLISH
+            });
+            await policyRepository.update(policiesToDiscontunie.map(policy => {
+                policy.status = PolicyType.DISCONTINUED;
+                return policy;
+            }));
+            await Promise.all(policiesToDiscontunie.map(policy =>
+                new GuardiansService().sendPolicyMessage(PolicyEvents.REFRESH_MODEL, policy.id, {})
+            ));
+        },
+        '0 * * * *',
+        channel
+    );
+    policyDiscontinueTask.start(true);
+    const clearPolicyCache = new SynchronizationTask(
+        'clear-policy-cache-sync',
+        async () => {
+            const policyCaches = await DatabaseServer.getPolicyCaches();
+            const now = Date.now();
+            for (const policyCache of policyCaches) {
+                if (policyCache.createDate.addDays(1).getTime() <= now) {
+                    await DatabaseServer.clearPolicyCaches(policyCache.id);
+                }
+            }
+        },
+        process.env.CLEAR_POLICY_CACHE_INTERVAL || '0 * * * *',
+        channel
+    );
+    clearPolicyCache.start(true);
 
     startMetricsServer();
 }, (reason) => {

@@ -17,6 +17,7 @@ import {
     Hbar,
     HbarUnit,
     PrivateKey,
+    PublicKey,
     Status,
     Timestamp,
     TokenAssociateTransaction,
@@ -43,13 +44,14 @@ import {
     TransactionRecordQuery,
     TransferTransaction
 } from '@hashgraph/sdk';
-import { HederaUtils, timeout } from './utils';
+import { HederaUtils, timeout } from './utils.js';
 import axios, { AxiosResponse } from 'axios';
-import { Environment } from './environment';
-import { ContractParamType, GenerateUUIDv4, HederaResponseCode } from '@guardian/interfaces';
+import { Environment } from './environment.js';
+import { ContractParamType, FireblocksCreds, GenerateUUIDv4, HederaResponseCode, ISignOptions, SignType } from '@guardian/interfaces';
 import Long from 'long';
-import { TransactionLogger } from './transaction-logger';
+import { TransactionLogger } from './transaction-logger.js';
 import process from 'process';
+import { FireblocksHelper } from './fireblocks-helper';
 
 export const MAX_FEE = Math.abs(+process.env.MAX_TRANSACTION_FEE) || 30;
 export const INITIAL_BALANCE = 30;
@@ -668,7 +670,7 @@ export class HederaSDKHelper {
             .setMaxTransactionFee(MAX_FEE)
             .freezeWith(client);
         const signTx = await transaction.sign(_supplyKey);
-        const receipt = await this.executeAndReceipt(client, signTx, 'TokenMintNFTTransaction');
+        const receipt = await this.executeAndReceipt(client, signTx, 'TokenMintNFTTransaction', data);
         const transactionStatus = receipt.status;
 
         if (transactionStatus === Status.Success) {
@@ -891,6 +893,7 @@ export class HederaSDKHelper {
      *
      * @param privateKey
      * @param transactionMemo
+     * @param signOptions
      * @returns Message timestamp
      */
     @timeout(HederaSDKHelper.MAX_TIMEOUT, 'Topic message submit transaction timeout exceeded')
@@ -898,7 +901,8 @@ export class HederaSDKHelper {
         topicId: string | TopicId,
         message: string,
         privateKey?: string | PrivateKey,
-        transactionMemo?: string
+        transactionMemo?: string,
+        signOptions?: ISignOptions
     ): Promise<string> {
         const client = this.client;
 
@@ -913,10 +917,57 @@ export class HederaSDKHelper {
             messageTransaction = messageTransaction.setTransactionMemo(transactionMemo.substring(0, 100));
         }
 
-        if (privateKey) {
-            messageTransaction = messageTransaction.freezeWith(client);
-            messageTransaction = await messageTransaction.sign(HederaUtils.parsPrivateKey(privateKey));
+        let signType = SignType.INTERNAL;
+        if (signOptions?.signType) {
+            signType = signOptions.signType;
         }
+
+        if (privateKey) {
+            switch (signType) {
+                case SignType.FIREBLOCKS: {
+                    const signData = (signOptions as any).data as FireblocksCreds;
+
+                    const fireblocksClient = new FireblocksHelper(
+                        signData.apiKey,
+                        signData.privateKey,
+                        signData.vaultId,
+                        signData.assetId,
+                    );
+                    const accountIds = Object.values(this.client.network) as AccountId[];
+                    messageTransaction.setNodeAccountIds([accountIds[0]]);
+                    messageTransaction = messageTransaction.freezeWith(client);
+                    messageTransaction = await messageTransaction.sign(HederaUtils.parsPrivateKey(privateKey));
+                    const tx = await fireblocksClient.createTransaction(messageTransaction.toBytes());
+
+                    if (!tx || !Array.isArray(tx.signedMessages)) {
+                        throw new Error(`Fireblocks signing failed`);
+                    }
+
+                    const signedMessage = tx.signedMessages[0];
+                    if (signedMessage) {
+                        const pubKey = PublicKey.fromStringED25519(signedMessage.publicKey);
+                        const signature = Buffer.from(signedMessage.signature.fullSig, 'hex');
+                        try {
+                            messageTransaction.addSignature(pubKey, signature);
+                        } catch (error) {
+                            throw new Error(error);
+                        }
+                    }
+                    break;
+                }
+
+                case SignType.INTERNAL: {
+                    messageTransaction = messageTransaction.freezeWith(client);
+                    messageTransaction = await messageTransaction.sign(HederaUtils.parsPrivateKey(privateKey));
+                    break;
+                }
+
+                default:
+                    messageTransaction = messageTransaction.freezeWith(client);
+                    messageTransaction = await messageTransaction.sign(HederaUtils.parsPrivateKey(privateKey));
+            }
+        }
+
         const rec = await this.executeAndRecord(client, messageTransaction, 'TopicMessageSubmitTransaction');
         const seconds = rec.consensusTimestamp.seconds.toString();
         const nanos = rec.consensusTimestamp.nanos.toString();
@@ -1059,12 +1110,25 @@ export class HederaSDKHelper {
     ): Promise<TransactionReceipt> {
         if (this.dryRun) {
             await this.virtualTransactionLog(this.dryRun, type);
+            let serials = [];
+            if (type === 'TokenMintNFTTransaction') {
+                if (metadata && metadata.length) {
+                    serials = new Array(Math.min(10, metadata?.length));
+                    const id = Date.now() % 1000000000;
+                    for (let i = 0; i < serials.length; i++) {
+                        serials[i] = Long.fromInt(id + i);
+                    }
+                }
+            }
+            if (type === 'NFTTransferTransaction') {
+                serials = metadata;
+            }
             return {
                 status: Status.Success,
                 topicId: new TokenId(Date.now()),
                 tokenId: new TokenId(Date.now()),
                 accountId: new AccountId(Date.now()),
-                serials: [Long.fromInt(1)]
+                serials
             } as any
         } else {
             const id = GenerateUUIDv4();
@@ -1479,6 +1543,69 @@ export class HederaSDKHelper {
         return await query.execute(client);
     }
 
+    /**
+     * Hedera REST api
+     * @param url Url
+     * @param options Options
+     * @param type Type
+     * @param filters Filters
+     * @returns Result
+     */
+    private static async hederaRestApi(
+        url: string,
+        options: { params?: any },
+        type: 'nfts' | 'transactions' | 'logs',
+        filters?: { [key: string]: any },
+        findOne = false,
+    ) {
+        const params: any = {
+            ...options,
+            responseType: 'json',
+        }
+        let hasNext = true;
+        const result = [];
+        while (hasNext) {
+            const res = await axios.get(url, params);
+            delete params.params;
+
+            if (!res || !res.data || !res.data[type]) {
+                throw new Error(`Invalid ${type} response`);
+            }
+
+            const typedData = res.data[type];
+            if (typedData.length === 0) {
+                return result;
+            }
+
+            if (filters) {
+                for (const item of typedData) {
+                    for (const filter of Object.keys(filters)) {
+                        if (item[filter] === filters[filter]) {
+                            result.push(item);
+                            if (findOne) {
+                                return result;
+                            }
+                        }
+                    }
+                }
+            } else {
+                result.push(...typedData);
+            }
+            url = `${res.request.protocol}//${res.request.host}${res.data.links?.next}`;
+            hasNext = !!res.data.links?.next;
+        }
+
+        return result;
+    }
+
+    /**
+     * Get contract events
+     * @param contractId Contract identifier
+     * @param timestamp Timestamp
+     * @param order Order
+     * @param limit Limit
+     * @returns Logs
+     */
     @timeout(HederaSDKHelper.MAX_TIMEOUT, 'Get contract events request timeout exceeded')
     public static async getContractEvents(
         contractId: string,
@@ -1486,10 +1613,6 @@ export class HederaSDKHelper {
         order?: string,
         limit: number = 100,
     ): Promise<any[]> {
-        let goNext = true;
-        let url = `${Environment.HEDERA_CONTRACT_API}${contractId}/results/logs`;
-        const result = [];
-
         const params: any = {
             limit,
             order: order || 'asc',
@@ -1497,32 +1620,12 @@ export class HederaSDKHelper {
         if (timestamp) {
             params.timestamp = timestamp;
         }
-        const p = {
+        const p: any = {
             params,
             responseType: 'json',
         };
-        while (goNext) {
-            const res = await axios.get(url, p as any);
-            delete p.params;
-
-            if (!res || !res.data || !res.data.logs) {
-                throw new Error(`Invalid contract logs response`);
-            }
-
-            const logs = res.data.logs;
-            if (logs.length === 0) {
-                return result;
-            }
-
-            result.push(...logs);
-            if (res.data.links?.next) {
-                url = `${res.request.protocol}//${res.request.host}${res.data.links?.next}`;
-            } else {
-                goNext = false;
-            }
-        }
-
-        return result;
+        const url = `${Environment.HEDERA_CONTRACT_API}${contractId}/results/logs`;
+        return await HederaSDKHelper.hederaRestApi(url, p, 'logs');
     }
 
     /**
@@ -1532,42 +1635,96 @@ export class HederaSDKHelper {
      */
     @timeout(HederaSDKHelper.MAX_TIMEOUT, 'Get serials request timeout exceeded')
     public async getSerialsNFT(tokenId?: string): Promise<any[]> {
-        let goNext = true;
         const client = this.client;
-        let url = `${Environment.HEDERA_ACCOUNT_API}${client.operatorAccountId}/nfts`;
-        const result = [];
         const params = {
             limit: Number.MAX_SAFE_INTEGER,
         }
         if (tokenId) {
             params['token.id'] = tokenId;
         }
-        const p = {
+        const p: any = {
             params,
             responseType: 'json',
         };
-        while (goNext) {
-            const res = await axios.get(url, p as any);
-            delete p.params;
+        const url = `${Environment.HEDERA_ACCOUNT_API}${client.operatorAccountId}/nfts`;
+        return await HederaSDKHelper.hederaRestApi(url, p, 'nfts');
+    }
 
-            if (!res || !res.data || !res.data.nfts) {
-                throw new Error(`Invalid nfts serials response`);
-            }
-
-            const nfts = res.data.nfts;
-            if (nfts.length === 0) {
-                return result;
-            }
-
-            result.push(...nfts);
-            if (res.data.links?.next) {
-                url = `${res.request.protocol}//${res.request.host}${res.data.links?.next}`;
-            } else {
-                goNext = false;
-            }
+    /**
+     * Get NFT token serials
+     * @param tokenId Token identifier
+     * @param accountId Account identifier
+     * @param serialnumber Serial number
+     * @param order Order
+     * @param filter Filter
+     * @param limit Limit
+     * @returns Serials
+     */
+    @timeout(HederaSDKHelper.MAX_TIMEOUT, 'Get token serials request timeout exceeded')
+    public static async getNFTTokenSerials(tokenId: string, accountId?: string, serialnumber?: string, order = 'asc', filter?: any, limit?: number): Promise<any[]> {
+        const params: any = {
+            limit: Number.MAX_SAFE_INTEGER,
+            order,
         }
+        if (accountId) {
+            params['account.id'] = accountId;
+        }
+        if (serialnumber) {
+            params.serialnumber = serialnumber;
+        }
+        if (Number.isInteger(limit)) {
+            params.limit = limit;
+        }
+        const p: any = {
+            params,
+            responseType: 'json',
+        };
+        const url = `${Environment.HEDERA_TOKENS_API}/${tokenId}/nfts`;
+        return await HederaSDKHelper.hederaRestApi(url, p, 'nfts', filter);
+    }
 
-        return result;
+    /**
+     * Get transactions
+     * @param accountId Account identifier
+     * @param type Type
+     * @param timestamp Timestamp
+     * @param order Order
+     * @param filter Filter
+     * @param limit Limit
+     * @returns Transactions
+     */
+    @timeout(HederaSDKHelper.MAX_TIMEOUT, 'Get transactions request timeout exceeded')
+    public static async getTransactions(
+        accountId?: string,
+        transactiontype?: string,
+        timestamp?: string,
+        order = 'asc',
+        filter?: any,
+        limit?: number,
+        findOne = false
+    ): Promise<any[]> {
+        const params: any = {
+            limit: Number.MAX_SAFE_INTEGER,
+            order,
+        }
+        if (accountId) {
+            params['account.id'] = accountId;
+        }
+        if (transactiontype) {
+            params.transactiontype = transactiontype;
+        }
+        if (timestamp) {
+            params.timestamp = timestamp;
+        }
+        if (Number.isInteger(limit)) {
+            params.limit = limit;
+        }
+        const p: any = {
+            params,
+            responseType: 'json',
+        };
+        const url = `${Environment.HEDERA_TRANSACTIONS_API}`;
+        return await HederaSDKHelper.hederaRestApi(url, p, 'transactions', filter, findOne);
     }
 
     /**

@@ -4,9 +4,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnInit } 
 import { PageEvent } from '@angular/material/paginator';
 import { Schema, SchemaField, UnitSystem } from '@guardian/interfaces';
 import { IPFSService } from 'src/app/services/ipfs.service';
-import { DATETIME_FORMATS } from '../schema-form/schema-form.component';
-import moment from 'moment-timezone';
-import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { GUARDIAN_DATETIME_FORMAT } from '../../../utils/datetime-format';
 
 /**
  * Form view by schema
@@ -16,9 +14,8 @@ import { MAT_DATE_LOCALE } from '@angular/material/core';
     templateUrl: './schema-form-view.component.html',
     styleUrls: ['./schema-form-view.component.css'],
     providers: [
-        {provide: MAT_DATE_LOCALE, useValue: ''},
         { provide: NgxMatDateAdapter, useClass: NgxMatMomentAdapter },
-        { provide: NGX_MAT_DATE_FORMATS, useValue: DATETIME_FORMATS }
+        {provide: NGX_MAT_DATE_FORMATS, useValue: GUARDIAN_DATETIME_FORMAT}
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -28,17 +25,19 @@ export class SchemaFormViewComponent implements OnInit {
     @Input('fields') schemaFields!: SchemaField[];
     @Input('delimiter-hide') delimiterHide: boolean = false;
     @Input('values') values: any;
+    @Input() dryRun?: boolean = false;
 
     fields: any[] | undefined = [];
     pageSize: number = 20;
 
     constructor(private ipfs: IPFSService, private changeDetector: ChangeDetectorRef) { }
 
-    formatDate(date: string): Date {
-        return moment(date, 'YYYY-MM-DD').tz(Intl.DateTimeFormat().resolvedOptions().timeZone, true).toDate();
-    }
 
     ngOnInit(): void {
+    }
+
+    isBooleanView(item: boolean | any): string {
+        return (typeof item === 'boolean') ? String(item) : 'Unset';
     }
 
     ngOnChanges() {
@@ -77,15 +76,28 @@ export class SchemaFormViewComponent implements OnInit {
                     : this.values[item.name];
                 if (this.isIPFS(field)) {
                     item.loading = true;
-                    this.ipfs
-                        .getImageByLink(item.value)
-                        .then((res) => {
-                            item.imgSrc = res;
-                        })
-                        .finally(() => {
-                            item.loading = false;
-                            this.changeDetector.detectChanges();
-                        });
+                    if (this.dryRun) {
+                        this.ipfs
+                            .getImageFromDryRunStorage(item.value)
+                            .then((res) => {
+                                item.imgSrc = res;
+                            })
+                            .finally(() => {
+                                item.loading = false;
+                                this.changeDetector.detectChanges();
+                            });
+                    } else {
+                        this.ipfs
+                            .getImageByLink(item.value)
+                            .then((res) => {
+                                item.imgSrc = res;
+                            })
+                            .finally(() => {
+                                item.loading = false;
+                                this.changeDetector.detectChanges();
+                            });
+                    }
+
                 }
             }
             if (!field.isArray && field.isRef) {
@@ -116,12 +128,22 @@ export class SchemaFormViewComponent implements OnInit {
                         Promise.all(
                             value.map((fieldItem: any) => {
                                 fieldItem.loading = true;
-                                return this.ipfs
-                                    .getImageByLink(fieldItem.value)
-                                    .then((res) => {
-                                        fieldItem.imgSrc = res;
-                                    })
-                                    .finally(() => (fieldItem.loading = false));
+
+                                if (this.dryRun) {
+                                    return this.ipfs
+                                        .getImageFromDryRunStorage(fieldItem.value)
+                                        .then((res) => {
+                                            fieldItem.imgSrc = res;
+                                        })
+                                        .finally(() => (fieldItem.loading = false));
+                                } else {
+                                    return this.ipfs
+                                        .getImageByLink(fieldItem.value)
+                                        .then((res) => {
+                                            fieldItem.imgSrc = res;
+                                        })
+                                        .finally(() => (fieldItem.loading = false));
+                                }
                             })
                         ).finally(() => this.changeDetector.detectChanges());
                     }
@@ -145,10 +167,10 @@ export class SchemaFormViewComponent implements OnInit {
     }
 
     getCID(link: string): string {
-        let matches = link.match(/Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,}/);
-        return matches
-            ? matches[0]
-            : "";
+        let matches = link?.match(
+            /Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,}/
+        );
+        return matches ? matches[0] : '';
     }
 
     getItemsPage(item: any, pageEvent?: PageEvent) {
@@ -185,6 +207,9 @@ export class SchemaFormViewComponent implements OnInit {
     }
 
     isIPFS(item: SchemaField): boolean {
+        if (item.pattern === '^((https):\/\/)?ipfs.io\/ipfs\/.+'
+            || item.pattern === '^ipfs:\/\/.+') {
+        }
         return item.pattern === '^((https):\/\/)?ipfs.io\/ipfs\/.+'
             || item.pattern === '^ipfs:\/\/.+';
     }

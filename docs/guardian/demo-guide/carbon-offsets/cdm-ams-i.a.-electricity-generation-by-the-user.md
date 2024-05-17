@@ -2,27 +2,27 @@
 
 ## Table of Contents
 
-Introduction to AMS-I.A. &#x20;
+[Introduction to AMS-I.A.](cdm-ams-i.a.-electricity-generation-by-the-user.md#introduction-to-ams-i.a) &#x20;
 
-Need and Use for AMS-I.A.
+[Need and Use for AMS-I.A.](cdm-ams-i.a.-electricity-generation-by-the-user.md#need-and-use-for-ams-i.a)
 
-Objective and Scope of AMS-I.A.
+[Objective and Scope of AMS-I.A.](cdm-ams-i.a.-electricity-generation-by-the-user.md#objective-and-scope-of-ams-i.a)
 
-Methodology Overview
+[Methodology Overview](cdm-ams-i.a.-electricity-generation-by-the-user.md#methodology-overview)
 
-Typical Projects
+[Typical Projects](cdm-ams-i.a.-electricity-generation-by-the-user.md#typical-projects)
 
-Available Roles
+[Available Roles](cdm-ams-i.a.-electricity-generation-by-the-user.md#available-roles)
 
-Key Documents and Schemas
+[Key Documents and Schemas](cdm-ams-i.a.-electricity-generation-by-the-user.md#key-documents-and-schemas)
 
-Token (Carbon Emission Reduction)
+[Tools Referenced](cdm-ams-i.a.-electricity-generation-by-the-user.md#tools-referenced)
 
-Workflow
+[Token (Carbon Emission Reduction)](cdm-ams-i.a.-electricity-generation-by-the-user.md#token-carbon-emission-reduction)
 
-IPFS Timestamp
+[Workflow](cdm-ams-i.a.-electricity-generation-by-the-user.md#workflow)
 
-Step-by-Step
+[Step-by-Step](cdm-ams-i.a.-electricity-generation-by-the-user.md#step-by-step)
 
 ### Introduction to AMS-I.A. &#x20;
 
@@ -60,17 +60,15 @@ Registry (UNFCCC) - The United Nations Framework Convention on Climate Change (U
 
 ### Key Documents and Schemas&#x20;
 
-Methodological Tool 05 – Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation.&#x20;
+1. Project Description - Project Participant information, standard project information, methodology information like baseline emissions, project emissions, etc.&#x20;
+2. Emissions Reduction – Schema included within the project information form; this is filled out by the project participant to calculate annual emission reductions.&#x20;
+3. Monitoring Report – The monitoring report is to be filled out based on the monitoring plan mentioned within the methodology.&#x20;
 
-Methodological Tool 16 – Project emissions from cultivation of biomass. &#x20;
+### Tools Referenced
 
-Methodological Tool 33 – Default values for common parameters. &#x20;
-
-Project Description - Project Participant information, standard project information, methodology information like baseline emissions, project emissions, etc.&#x20;
-
-Emissions Reduction – Schema included within the project information form; this is filled out by the project participant to calculate annual emission reductions.&#x20;
-
-Monitoring Report – The monitoring report is to be filled out based on the monitoring plan mentioned within the methodology.&#x20;
+* Methodological Tool 05 – Baseline, project and/or leakage emissions from electricity consumption and monitoring of electricity generation.&#x20;
+* Methodological Tool 16 – Project emissions from cultivation of biomass. &#x20;
+* Methodological Tool 33 – Default values for common parameters. &#x20;
 
 ### Token (Carbon Emission Reduction)&#x20;
 
@@ -80,10 +78,6 @@ Certified Emission Reduction (CER) credits, each equivalent to one tonne of CO2.
 
 <figure><img src="../../../.gitbook/assets/image (369).png" alt=""><figcaption></figcaption></figure>
 
-### IPFS Timestamp&#x20;
-
-(Placeholder)&#x20;
-
 ### Step-by-Step &#x20;
 
-(Screenshots)&#x20;
+(Coming Soon)&#x20;

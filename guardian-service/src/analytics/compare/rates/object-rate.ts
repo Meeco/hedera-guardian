@@ -1,12 +1,12 @@
-import { Status } from '../types/status.type';
-import { IRate } from '../interfaces/rate.interface';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { PropertiesRate } from './properties-rate';
-import { Rate } from './rate';
-import { IRateMap } from '../interfaces/rate-map.interface';
-import { PropertyModel } from '../models/property.model';
-import { CompareUtils } from '../utils/utils';
-import { IWeightModel } from '../interfaces/weight-model.interface';
+import { Status } from '../types/status.type.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { PropertiesRate } from './properties-rate.js';
+import { Rate } from './rate.js';
+import { IRateMap } from '../interfaces/rate-map.interface.js';
+import { PropertyModel } from '../models/property.model.js';
+import { CompareUtils } from '../utils/utils.js';
+import { IWeightModel } from '../interfaces/weight-model.interface.js';
 
 /**
  * Calculates the difference between two Object
@@ -44,7 +44,7 @@ export class ObjectRate extends Rate<IWeightModel> {
      * @param options - comparison options
      * @private
      */
-    private compare(item1: any, item2: any, options: ICompareOptions): void {
+    private compare(item1: any, item2: any, options: CompareOptions): void {
         const list: string[] = [];
         const map: { [key: string]: IRateMap<PropertyModel<any>> } = {};
 
@@ -82,7 +82,7 @@ export class ObjectRate extends Rate<IWeightModel> {
      * @param options - comparison options
      * @public
      */
-    public override calc(options: ICompareOptions): void {
+    public override calc(options: CompareOptions): void {
         this.compare(this.left, this.right, options);
 
         if (!this.left || !this.right) {

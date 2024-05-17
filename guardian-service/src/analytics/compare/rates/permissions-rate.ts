@@ -1,7 +1,7 @@
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { IRateTable } from '../interfaces/rate-table.interface';
-import { IRate } from '../interfaces/rate.interface';
-import { Status } from '../types/status.type';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { IRateTable } from '../interfaces/rate-table.interface.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { Status } from '../types/status.type.js';
 
 /**
  * Calculates the difference between two Permissions
@@ -71,7 +71,7 @@ export class PermissionsRate implements IRate<string> {
      * @param options - comparison options
      * @public
      */
-    public calc(options: ICompareOptions): void {
+    public calc(options: CompareOptions): void {
         return;
     }
 

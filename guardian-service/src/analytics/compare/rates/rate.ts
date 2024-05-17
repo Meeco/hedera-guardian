@@ -1,8 +1,8 @@
-import { Status } from '../types/status.type';
-import { IRate } from '../interfaces/rate.interface';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { IModel } from '../interfaces/model.interface';
-import { IRateTable } from '../interfaces/rate-table.interface';
+import { Status } from '../types/status.type.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { IModel } from '../interfaces/model.interface.js';
+import { IRateTable } from '../interfaces/rate-table.interface.js';
 
 /**
  * Calculates the difference between two objects
@@ -67,7 +67,7 @@ export class Rate<T extends IModel> implements IRate<T> {
      * @param options - comparison options
      * @public
      */
-    public calc(options: ICompareOptions): void {
+    public calc(options: CompareOptions): void {
         return;
     }
 

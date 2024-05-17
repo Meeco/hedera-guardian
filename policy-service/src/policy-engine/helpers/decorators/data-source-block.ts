@@ -1,7 +1,7 @@
-import { BasicBlock } from '@policy-engine/helpers/decorators/basic-block';
-import { PolicyBlockDecoratorOptions } from '@policy-engine/interfaces/block-options';
-import { IPolicyBlock } from '@policy-engine/policy-engine.interface';
-import { IPolicyUser } from '@policy-engine/policy-user';
+import { BasicBlock } from '../../helpers/decorators/basic-block.js';
+import { PolicyBlockDecoratorOptions } from '../../interfaces/block-options.js';
+import { IPolicyBlock } from '../../policy-engine.interface.js';
+import { IPolicyUser } from '../../policy-user.js';
 
 /**
  * Datasource block decorator
@@ -87,7 +87,7 @@ export function DataSourceBlock(options: Partial<PolicyBlockDecoratorOptions>) {
              * @param countResult
              * @protected
              */
-             protected async getGlobalSourcesFilters(user: IPolicyUser) {
+            protected async getGlobalSourcesFilters(user: IPolicyUser) {
                 const dynFilters = [];
                 for (const child of this.children) {
                     if (child.blockClassName === 'DataSourceAddon') {
@@ -124,7 +124,7 @@ export function DataSourceBlock(options: Partial<PolicyBlockDecoratorOptions>) {
                     }
                     filters.push(blockFilter);
                 }
-                return {filters, dataType: sourceAddons[0].options.dataType};
+                return { filters, dataType: sourceAddons[0].options.dataType };
             }
 
             /**
@@ -181,7 +181,7 @@ export function DataSourceBlock(options: Partial<PolicyBlockDecoratorOptions>) {
                     }
 
                     skip = Math.max(start - previousCount, 0);
-                    limit =  paginationData.itemsPerPage - Math.min((previousCount - start), 0);
+                    limit = paginationData.itemsPerPage - Math.min((previousCount - start), 0);
 
                     const childData = await currentSource.getFromSource(user, globalFilters, false, {
                         offset: skip,

@@ -1,15 +1,14 @@
-import { EventBlock } from '@policy-engine/helpers/decorators';
+import { EventBlock } from '../helpers/decorators/index.js';
 import { UserType, Schema } from '@guardian/interfaces';
-import { findOptions } from '@policy-engine/helpers/find-options';
-import { IPolicyAddonBlock, IPolicyDocument, IPolicyEventState, IPolicyInterfaceBlock } from '@policy-engine/policy-engine.interface';
-import { PrivateKey } from '@hashgraph/sdk';
-import { ChildrenType, ControlType } from '@policy-engine/interfaces/block-about';
-import { PolicyInputEventType, PolicyOutputEventType } from '@policy-engine/interfaces';
-import { PolicyComponentsUtils } from '@policy-engine/policy-components-utils';
-import { IPolicyUser } from '@policy-engine/policy-user';
-import { PolicyUtils } from '@policy-engine/helpers/utils';
-import { ExternalDocuments, ExternalEvent, ExternalEventType } from '@policy-engine/interfaces/external-event';
-import { DidDocumentBase, KeyType } from '@guardian/common';
+import { findOptions } from '../helpers/find-options.js';
+import { IPolicyAddonBlock, IPolicyDocument, IPolicyEventState, IPolicyInterfaceBlock } from '../policy-engine.interface.js';
+import { ChildrenType, ControlType } from '../interfaces/block-about.js';
+import { PolicyInputEventType, PolicyOutputEventType } from '../interfaces/index.js';
+import { PolicyComponentsUtils } from '../policy-components-utils.js';
+import { IPolicyUser } from '../policy-user.js';
+import { PolicyUtils } from '../helpers/utils.js';
+import { ExternalDocuments, ExternalEvent, ExternalEventType } from '../interfaces/external-event.js';
+import { KeyType } from '@guardian/common';
 
 /**
  * Document action clock with UI
@@ -100,23 +99,20 @@ export class InterfaceDocumentActionBlock {
 
         if (ref.options.type === 'download') {
             const sensorDid = document.document.credentialSubject[0].id;
-            const policy = await ref.databaseServer.getPolicy(ref.policyId);
-
             const userDID = document.owner;
-            const hederaAccount = await PolicyUtils.getHederaAccount(ref, userDID);
-            const sensorKey = await PolicyUtils.getAccountKey(ref, userDID, KeyType.KEY, sensorDid);
-            const hederaAccountId = hederaAccount.hederaAccountId;
-            const hederaAccountKey = hederaAccount.hederaAccountKey;
+            const userCred = await PolicyUtils.getUserCredentials(ref, userDID);
+            const hederaCred = await userCred.loadHederaCredentials(ref);
             const schemaObject = await PolicyUtils.loadSchemaByID(ref, ref.options.schema);
             const schema = new Schema(schemaObject);
-            const didDocument = await DidDocumentBase.createByPrivateKey(sensorDid, PrivateKey.fromString(sensorKey));
+            const didDocument = await userCred.loadSubDidDocument(ref, sensorDid);
+            const sensorKey = await PolicyUtils.getAccountKey(ref, userDID, KeyType.KEY, sensorDid);
             result = {
                 fileName: ref.options.filename || `${sensorDid}.config.json`,
                 body: {
                     'url': ref.options.targetUrl || process.env.MRV_ADDRESS,
-                    'topic': policy.topicId,
-                    'hederaAccountId': hederaAccountId,
-                    'hederaAccountKey': hederaAccountKey,
+                    'topic': ref.policyInstance?.topicId,
+                    'hederaAccountId': hederaCred.hederaAccountId,
+                    'hederaAccountKey': hederaCred.hederaAccountKey,
                     'installer': userDID,
                     'did': sensorDid,
                     'key': sensorKey,
@@ -126,9 +122,9 @@ export class InterfaceDocumentActionBlock {
                         'type': schema.type,
                         '@context': [schema.contextURL]
                     },
-                    'didDocument': await didDocument.getPrivateDidDocument(),
+                    'didDocument': didDocument.getPrivateDocument(),
                     'policyId': ref.policyId,
-                    'policyTag': policy.policyTag,
+                    'policyTag': ref.policyInstance?.policyTag,
                     'ref': sensorDid
                 }
             }

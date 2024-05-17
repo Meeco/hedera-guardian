@@ -6,15 +6,23 @@ To create a new Schemas, click on the **New** button at the top right corner.
 
 After clicking on the New button, you will be asked to enter Schema details such as Schema Name, Policy Dropdown, Entity : VC/MRV/NONE, Schema Description and any other required fields.
 
-![](<../../../.gitbook/assets/image (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1).png>)
+![](<../../../.gitbook/assets/image (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1).png>)
 
 In addition to the basic Schema details we also have an option to add Field and Condition to each field.
 
 ![](<../../../.gitbook/assets/image (9) (1) (2) (1).png>)
 
+We can also add Property dropdown field to each field in Schema. these properties are defined by IWA and are in standardized format.
+
+<figure><img src="../../../.gitbook/assets/image (404).png" alt=""><figcaption></figcaption></figure>
+
+We can select respective property for that specific field by searching by entering starting alphabet:
+
+<figure><img src="../../../.gitbook/assets/image (405).png" alt=""><figcaption></figcaption></figure>
+
 We can also customize the Field keys and Field Title by clicking on Advanced Tab.
 
-![](<../../../.gitbook/assets/image (3) (1) (1) (1) (1) (1) (1) (1) (1).png>)
+![](<../../../.gitbook/assets/image (3) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1).png>)
 
 Instead of creating a new Schema from scratch, there is also an option to import it via File or via IPFS.
 
@@ -26,24 +34,26 @@ To import the Schema, click on the Import button.
 Files with **.schema** extension are only accepted. These files are in zip format, i.e. they are zip archives of the text file.
 {% endhint %}
 
-Import from IPFS: You can also import Schema from IPFS by entering the correct Schema timestamp. Sample iREC Schema timestamp is below:
+#### Import from IPFS
+
+You can also import Schema from IPFS by entering the correct Schema timestamp.&#x20;
+
+Sample iREC Schema timestamp is below:
 
 ```
-1674821342.619996003 (iREC 3 Policy)
+1707126011.005978889 (iREC 3 Policy)
 ```
 
 <figure><img src="../../../.gitbook/assets/image (31) (1) (2).png" alt=""><figcaption></figcaption></figure>
 
 Once the Schema is imported, we need to select the Policy from the Policy dropdown to connect the Schema and the Policy.
 
-<figure><img src="../../../.gitbook/assets/image (5) (1) (1) (1) (1) (1).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/image (5) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 <figure><img src="../../../.gitbook/assets/image (3) (1) (2) (1) (1).png" alt=""><figcaption></figcaption></figure>
 
 {% hint style="info" %}
-**Note:**
-
-The major difference between creating / importing System Schema and Policy Schema is that we only get policy selection dropdown when policy schema is imported.
+**Note:** The major difference between creating / importing System Schema and Policy Schema is that we only get policy selection dropdown when policy schema is imported.
 {% endhint %}
 
 After selecting the required Policy, click on the Import button.
@@ -102,6 +112,7 @@ There are different types of Field Types:
 * Help Text
 * GeoJSON
 * URI
+* Sentinel Hub
 
 Each of the above field types can be marked as either Marked or optional by checking the Required Field checkbox.
 

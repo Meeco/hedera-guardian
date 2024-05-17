@@ -1,10 +1,12 @@
-import { GeoJsonContext, IRootConfig, SchemaHelper, SchemaStatus } from '@guardian/interfaces';
-
-import { checkForCircularDependency, incrementSchemaVersion, updateSchemaDefs, updateSchemaDocument } from './schema-helper';
+import * as pkg from '@guardian/interfaces';
+import { checkForCircularDependency, incrementSchemaVersion, updateSchemaDefs, updateSchemaDocument } from './schema-helper.js';
 import { DatabaseServer, MessageAction, MessageServer, Schema as SchemaCollection, SchemaMessage, schemasToContext, TopicConfig, UrlType } from '@guardian/common';
-import { emptyNotifier, INotifier } from '@helpers/notifier';
-import { publishSchemaTags } from './../tag.service';
-import { exportSchemas } from './schema-import-export-helper';
+import { emptyNotifier, INotifier } from '../../helpers/notifier.js';
+import { publishSchemaTags } from './../tag.service.js';
+import { exportSchemas } from './schema-import-export-helper.js';
+import { IRootConfig } from '../../interfaces/root-config.interface.js';
+
+const { GeoJsonContext, SchemaHelper, SchemaStatus, SentinelHubContext } = pkg;
 
 /**
  * Publish schema
@@ -36,9 +38,14 @@ export async function publishSchema(
     }
 
     let additionalContexts: Map<string, any>;
-    if (itemDocument.$defs && itemDocument.$defs['#GeoJSON']) {
+    if (itemDocument.$defs && (itemDocument.$defs['#GeoJSON'] || itemDocument.$defs['#SentinelHUB'])) {
         additionalContexts = new Map<string, any>();
-        additionalContexts.set('#GeoJSON', GeoJsonContext);
+        if (itemDocument.$defs['#GeoJSON']) {
+            additionalContexts.set('#GeoJSON', GeoJsonContext);
+        }
+        if (itemDocument.$defs['#SentinelHUB']) {
+            additionalContexts.set('#SentinelHUB', SentinelHubContext);
+        }
     }
 
     item.context = schemasToContext([...defsArray, itemDocument], additionalContexts);
@@ -128,7 +135,7 @@ export async function findAndPublishSchema(
 
     notifier.completedAndStart('Resolve topic');
     const topic = await TopicConfig.fromObject(await DatabaseServer.getTopicById(item.topicId), true);
-    const messageServer = new MessageServer(root.hederaAccountId, root.hederaAccountKey)
+    const messageServer = new MessageServer(root.hederaAccountId, root.hederaAccountKey, root.signOptions)
         .setTopicObject(topic);
     notifier.completedAndStart('Publish schema');
 
@@ -242,9 +249,14 @@ export async function findAndDryRunSchema(
         }
     }
     let additionalContexts: Map<string, any>;
-    if (itemDocument.$defs && itemDocument.$defs['#GeoJSON']) {
+    if (itemDocument.$defs && (itemDocument.$defs['#GeoJSON'] || itemDocument.$defs['#SentinelHUB'])) {
         additionalContexts = new Map<string, any>();
-        additionalContexts.set('#GeoJSON', GeoJsonContext);
+        if (itemDocument.$defs['#GeoJSON']) {
+            additionalContexts.set('#GeoJSON', GeoJsonContext);
+        }
+        if (itemDocument.$defs['#SentinelHUB']) {
+            additionalContexts.set('#SentinelHUB', SentinelHubContext);
+        }
     }
 
     item.context = schemasToContext([...defsArray, itemDocument], additionalContexts);

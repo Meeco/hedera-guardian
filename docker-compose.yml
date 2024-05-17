@@ -1,35 +1,47 @@
+# https://docs.docker.com/compose/environment-variables/envvars-precedence/
+# Environment leverage the gerarchy defined in the docker compose between "env_file" and "environment" attributes
+# ecosystem variables defined in the "env_file" .env.${GUARDIAN_ENV}.guardian.system
+# specific service variables defined by "environment" can override what is defined in the ecosystem file
 version: "3.8"
 services:
   mongo:
-    image: mongo:6.0.3
+    image: mongo:6.0.13
     command: "--setParameter allowDiskUseByDefault=true"
     restart: always
     expose:
       - 27017
 
   mongo-express:
-    image: mongo-express:1.0.0-alpha.4
+    image: mongo-express:1.0.2-20
     expose:
       - 8081
     environment:
       ME_CONFIG_MONGODB_SERVER: mongo
       ME_CONFIG_MONGODB_PORT: 27017
-      ME_CONFIG_SITE_BASEURL: /mongo-admin
+      ME_CONFIG_SITE_BASEURL: /mongo-admin # default credentials: admin/pass
     depends_on:
       - mongo
 
+  cache:
+    image: registry.redict.io/redict
+    restart: always
+    expose:
+      - 6379
+    ports:
+      - "6379:6379"
+
   ipfs-node:
-    image: ipfs/kubo:v0.22.0
+    image: ipfs/kubo:v0.26.0
     ports:
       - "5001:5001"
       - "4001:4001"
       - "8080:8080"
     volumes:
-      - ./runtime-data/ipfs/staging:/export:rw
-      - ./runtime-data/ipfs/data:/data/ipfs:rw
+      - ipfs_data:/data/ipfs:rw
+      - ipfs_export:/export:rw
 
   message-broker:
-    image: nats:2.9.8
+    image: nats:2.9.24
     expose:
       - 4222
     ports:
@@ -37,7 +49,7 @@ services:
     command: '--http_port 8222'
 
   vault:
-    image: vault:1.12.2
+    image: hashicorp/vault:1.12.11
     expose:
       - 8200
     ports:
@@ -51,17 +63,13 @@ services:
       - ./file:/vault/file:rw
       - ./config:/vault/config:rw
 
-# https://docs.docker.com/compose/environment-variables/envvars-precedence/
-# Environment leverage the gerarchy defined in the docker compose between "env_file" and "environment" attributes
-# ecosystem variables defined in the "env_file" .env.${GUARDIAN_ENV}.guardian.system
-# specific service variables defined by "environment" can override what is defined in the ecosystem file
-
   notification-service:
     env_file:
       - ./configs/.env.${GUARDIAN_ENV}.guardian.system
     build:
       context: .
       dockerfile: ./notification-service/Dockerfile
+    init: true
     depends_on:
       - message-broker
     environment:
@@ -75,6 +83,7 @@ services:
     build:
       context: .
       dockerfile: ./logger-service/Dockerfile
+    init: true
     depends_on:
       - message-broker
     environment:
@@ -84,12 +93,13 @@ services:
     volumes:
       - ./logger-service/configs:/usr/local/logger-service/configs:ro
 
-  worker-service-1:
+  worker-service:
     env_file:
       - ./configs/.env.${GUARDIAN_ENV}.guardian.system
     build:
       context: .
       dockerfile: ./worker-service/Dockerfile
+    init: true    
     depends_on:
       ipfs-node:
         condition: service_healthy
@@ -97,32 +107,13 @@ services:
         condition: service_started
     environment:
       - GUARDIAN_ENV=${GUARDIAN_ENV}
-      - SERVICE_CHANNEL:"worker.1"
     expose:
       - 6555
     volumes:
       - ./worker-service/tls:/usr/local/worker-service/tls:ro
       - ./worker-service/configs:/usr/local/worker-service/configs:ro
-
-  worker-service-2:
-    env_file:
-      - ./configs/.env.${GUARDIAN_ENV}.guardian.system
-    build:
-      context: .
-      dockerfile: ./worker-service/Dockerfile
-    depends_on:
-      ipfs-node:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-    environment:
-      - GUARDIAN_ENV=${GUARDIAN_ENV}
-      - SERVICE_CHANNEL="worker.2"
-    expose:
-      - 6555
-    volumes:
-      - ./worker-service/tls:/usr/local/worker-service/tls:ro
-      - ./worker-service/configs:/usr/local/worker-service/configs:ro
+    deploy:
+      replicas: 2
 
   auth-service:
     env_file:
@@ -130,6 +121,7 @@ services:
     build:
       context: .
       dockerfile: ./auth-service/Dockerfile.demo
+    init: true    
     ports:
       - '5005:5005'
     volumes:
@@ -152,11 +144,13 @@ services:
     build:
       context: .
       dockerfile: ./api-gateway/Dockerfile.demo
+    init: true    
     expose:
       - 3002
       - 6555
     depends_on:
       - mongo
+      - cache
       - message-broker
       - guardian-service
       - auth-service
@@ -166,12 +160,33 @@ services:
     volumes:
       - ./api-gateway/configs:/usr/local/api-gateway/configs:ro
 
+  ai-service:
+    env_file:
+      - ./configs/.env.${GUARDIAN_ENV}.guardian.system
+    build:
+      context: .
+      dockerfile: ./ai-service/Dockerfile
+    init: true    
+    expose:
+      - 3013
+    depends_on:
+      - mongo
+      - message-broker
+      - logger-service
+    volumes:
+      - ./ai-service/data:/usr/local/ai-service/data:rw
+    environment:
+      - GUARDIAN_ENV=${GUARDIAN_ENV}
+      - VECTOR_STORAGE_PATH=./faiss-vector
+      - DOCS_STORAGE_PATH=./data/generated-data
+
   policy-service:
     env_file:
       - ./configs/.env.${GUARDIAN_ENV}.guardian.system
     build:
       context: .
       dockerfile: ./policy-service/Dockerfile
+    init: true
     ports:
       - "5006:5006"
     depends_on:
@@ -188,13 +203,13 @@ services:
       - ./policy-service/tls:/usr/local/policy-service/tls:ro
       - ./policy-service/configs:/usr/local/policy-service/configs:ro
 
-
   guardian-service:
     env_file:
       - ./configs/.env.${GUARDIAN_ENV}.guardian.system
     build:
       context: .
       dockerfile: ./guardian-service/Dockerfile
+    init: true    
     ports:
       - "5007:5007"
     volumes:
@@ -205,8 +220,7 @@ services:
       - message-broker
       - auth-service
       - logger-service
-      - worker-service-1
-      - worker-service-2
+      - worker-service
       - policy-service
     environment:
       - GUARDIAN_ENV=${GUARDIAN_ENV}
@@ -218,8 +232,7 @@ services:
     build:
       context: .
       dockerfile: application-events/Dockerfile
-    expose:
-      - 3012
+    init: true
     ports:
       - "3012:3012"
     depends_on:
@@ -228,22 +241,25 @@ services:
       - guardian-service
       - auth-service
       - logger-service
-
+    expose:
+    - 3012
 
   mrv-sender:
     build:
       context: .
       dockerfile: ./mrv-sender/Dockerfile
+    init: true
+    ports:
+      - "5008:5008"
     expose:
       - 3003
       - 5008
-    ports:
-      - "5008:5008"
 
   topic-viewer:
     build:
       context: .
       dockerfile: ./topic-viewer/Dockerfile
+    init: true
     expose:
       - 3006
       - 5009
@@ -254,6 +270,7 @@ services:
     build:
       context: .
       dockerfile: ./web-proxy/Dockerfile
+    init: true
     ports:
       - "3000:80"
     depends_on:
@@ -265,7 +282,6 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.44.0
-    container_name: prometheus
     restart: unless-stopped
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
@@ -282,8 +298,7 @@ services:
       - monitoring
 
   grafana:
-    image: grafana/grafana:10.0.0
-    container_name: grafana
+    image: grafana/grafana:10.0.10
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -300,14 +315,10 @@ services:
       - monitoring
 
 volumes:
-  mongo:
-  prometheus_data: {}
-  grafana_data: {}
-  branding_data:
-  # volume-guardian-service:
-  # volume-ui-service:
-  # volume-mrv-sender:
-  #  volume-message-broker:
+  prometheus_data:
+  grafana_data:
+  ipfs_data:
+  ipfs_export:
 
 networks:
   monitoring:

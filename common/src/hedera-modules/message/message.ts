@@ -1,10 +1,10 @@
 import { TopicId } from '@hashgraph/sdk';
-import { IURL, UrlType } from './url.interface';
-import { MessageAction } from './message-action';
-import { MessageType } from './message-type';
-import { MessageBody } from './message-body.interface';
+import { IURL, UrlType } from './url.interface.js';
+import { MessageAction } from './message-action.js';
+import { MessageType } from './message-type.js';
+import { MessageBody } from './message-body.interface.js';
 import { GenerateUUIDv4 } from '@guardian/interfaces';
-import { Hashing } from '../hashing';
+import { Hashing } from '../hashing.js';
 
 /**
  * Message status
@@ -222,7 +222,7 @@ export abstract class Message {
      * @param index
      * @param type
      */
-    public getUrlValue(index: number, type: UrlType): string | null {
+    public getUrlValue(index: number, type: UrlType): string {
         if (this.urls && this.urls[index]) {
             switch (type) {
                 case UrlType.cid:
@@ -233,7 +233,7 @@ export abstract class Message {
                     break;
             }
         }
-        return null;
+        return undefined;
     }
 
     /**

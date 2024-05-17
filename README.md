@@ -6,9 +6,10 @@
 
 Guardian is a modular open-source solution that includes best-in-class identity management and decentralized ledger technology (DLT) libraries. At the heart of Guardian solution is a sophisticated Policy Workflow Engine (PWE) that enables applications to offer a digital (or digitized) Measurement, Reporting, and Verification requirements-based tokenization implementation.
 
-[HIP-19](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-19.md) · [HIP-28](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-28.md) · [HIP-29](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-29.md) · [Report a Bug](CONTRIBUTING#bug-reports) · [Request a Policy or a Feature](CONTRIBUTING#new-policy-or-feature-requests)
+[HIP-19](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-19.md) · [HIP-28](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-28.md) · [HIP-29](https://github.com/hashgraph/hedera-improvement-proposal/blob/master/HIP/hip-29.md) · [Report a Bug](CONTRIBUTING.md#bug-reports) · [Request a Policy or a Feature](CONTRIBUTING.md#new-policy-or-feature-requests)
 
 ## Discovering Digital Environmental Assets assets on Hedera
+
 
 As identified in Hedera Improvement Proposal 19 (HIP-19), each entity on the Hedera network may contain a specific identifier in the memo field for discoverability. Guardian demonstrates this when every Hedera Consensus Service transaction is logged to a Hedera Consensus Service (HCS) Topic. Observing the Hedera Consensus Service Topic, you can discover newly minted tokens. 
 
@@ -28,6 +29,9 @@ To get a local copy up and running quickly, follow the steps below. Please refer
 
 * [Hedera Testnet Account](https://portal.hedera.com)
 * [Web3.Storage Account](https://web3.storage/)
+* [Filebase Account](https://filebase.com/)
+
+Note: as of January, 10th 2024 old web3.storage upload API (the main upload API before November 20, 2023) has been sunset. New **w3up** service accounts/API must be used with Guardian going forward.
 
 When building the reference implementation, you can [manually build every component](#manual-installation) or run a single command with Docker.
 
@@ -37,7 +41,7 @@ When building the reference implementation, you can [manually build every compon
 
 * [Docker](https://www.docker.com)
 
-If you build with docker [MongoDB V6](https://www.mongodb.com), [NodeJS V16](https://nodejs.org), [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) and [Nats 1.12.2](https://nats.io/) will be installed and configured automatically.
+If you build with docker [MongoDB V6](https://www.mongodb.com), [NodeJS V20](https://nodejs.org), [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable) and [Nats 1.12.2](https://nats.io/) will be installed and configured automatically.
 
 ### Installation
 
@@ -52,13 +56,13 @@ The following steps need to be executed in order to start Guardian using docker:
 
 Here the steps description follows:
 
-1. Clone the repo
+#### 1. Clone the repo
 
    ```shell
    git clone https://github.com/hashgraph/guardian.git
    ```
 
-2. Configure project level .env file.
+#### 2. Configure project level .env file.
 
 The main configuration file that needs to be provided to the Guardian system is the `.env` file.
 Cut and paste the `.env.template` renaming it as `.env` here you may choose the name of the Guardian platform. Leave the field empty or unspecified if you update a production environment to keep previous data ( for more details read [here](https://docs.hedera.com/guardian/guardian/readme/environments/ecosystem-environments)).
@@ -71,7 +75,7 @@ For this example purpose let's name the Guardian platform as "develop"
 
 > **_NOTE:_**  Every single service is provided in its folder with a `.env.template` file, this set of files are only needed for the case of Manual installation. 
 
-3. Update BC access variables.
+#### 3. Update BC access variables.
 
 Update the following files with your Hedera Testnet account info (see prerequisites) as indicated. Please check complete steps to generate Operator_ID and Operator_Key by looking at the link: [How to Create Operator_ID and Operator_Key](https://docs.hedera.com/guardian/getting-started/getting-started/how-to-create-operator-id-and-operator-key).
 The Operator_ID and Operator_Key and HEDERA_NET are all that Guardian needs to access the Hedera Blockchain assuming a role on it. This parameters needs to be configured in a file at the path `./configs`, the file should use the following naming convention:
@@ -100,7 +104,7 @@ Multienvironemnt is a breaking change and the configuration of this parameter in
 - if you are upgrading from a release after the Multi-environment (>= to 2.13.0) do not change the state of this parameter (so if you removed the parameter in some previous installation do not introduce it).
 - if the installation is an upgrading from a release previous of the Multi-environment (<= to 2.13.0) to a following one you need to configure the `PREUSED_HEDERA_NET`. After that the parameter will last in the configuration unchanged.
 
-#### 3.1. PREUSED_HEDERA_NET configuration
+##### 3.1. PREUSED_HEDERA_NET configuration
 
 The `PREUSED_HEDERA_NET` parameter is intended to hold the target Hedera network that the system already started to notarize data to. PREUSED\_HEDERA\_NET is the reference to the HEDERA_NET that was in use before the upgrade.
 To let the Multi-environment transition happen in a transparent way the `GUARDIAN_ENV` parameter in the `.env` file has to be configured as empty while  the `PREUSED_HEDERA_NET` has to be set with the same value configured in the `HEDERA_NET` parameter in the previous configuration file.  
@@ -160,10 +164,10 @@ To let the Multi-environment transition happen in a transparent way the `GUARDIA
 > **_NOTE:_**  You can use the Schema Topic ID (`INITIALIZATION_TOPIC_ID`) already present in the configuration files, or you can specify your own.
 
 > **_NOTE:_**  for any other GUARDIAN\_ENV name of your choice just copy and paste the file `./configs/.env.template.guardian.system` and rename as `./configs/.env.<choosen name>.guardian.system`
-   
-4. Now, we have two options to setup IPFS node :  1. Local node 2. IPFS Web3Storage node.
 
-#### 4.1 Setting up IPFS Local node:
+#### 4. Now, we have two options to setup IPFS node :  1. Local node 2. IPFS Web3Storage node 3. Filebase Bucket.
+
+##### 4.1 Setting up IPFS Local node:
 
    - 4.1.1 We need to install and configure any IPFS node. [example](https://github.com/yeasy/docker-ipfs)
 
@@ -175,21 +179,67 @@ To let the Multi-environment transition happen in a transparent way the `GUARDIA
    IPFS_PUBLIC_GATEWAY='...' # Default IPFS_PUBLIC_GATEWAY='https://localhost:8080/ipfs/${cid}'
    IPFS_PROVIDER="local"
    ```
-   
 
+##### 4.2 Setting up IPFS Web3Storage node:
 
-#### 4.2 Setting up IPFS Web3Storage node:**
-   
-For setup IPFS web3storage node you need to set variables in file `./configs/.env.develop.guardian.system`:
+To select this option ensure that `IPFS_PROVIDER="web3storage"` setting exists in your `./configs/.env.<environment>.guardian.system` file.
+
+To configure access to the [w3up](https://github.com/web3-storage/w3up) IPFS upload API from web3.storage for your Guardian instance you need to set correct values to the following variables in the `./configs/.env.<environment>.guardian.system` file:
    
    ```
-   IPFS_STORAGE_API_KEY="..."
-   IPFS_PROVIDER="web3storage"
+   IPFS_STORAGE_KEY="..."
+   IPFS_STORAGE_PROOF="..."
    ```
+
+> **_NOTE:_**  When Windows OS is used for creating the IPFS values, please use bash shell to prevent issues with base64 encoding.
  
-   To generate Web3.Storage API KEY please follow the steps from <https://web3.storage/docs/#quickstart>. To know complete information on generating API Key please check: [How to Create Web3.Storage API Key](https://docs.hedera.com/guardian/guardian/readme/getting-started/how-to-generate-web3.storage-api-key).
+To obtain the values for these variables please follow the steps below:
+- Create an account on https://web3.storage, please specify the email you have access to as the account authentication is based on the email validation. Make sure to follow through the registration process to the end, choose an appropriate billing plan for your needs (e.g. 'starter') and enter your payment details.
+- Install w3cli as described in the [corresponding section](https://web3.storage/docs/w3cli/#install) of the web3.storage documentation.
+- Create your 'space' as described in the ['Create your first space'](https://web3.storage/docs/w3cli/#create-your-first-space) section of the documentation.
+- Execute the following to set the Space you intend on delegating access to: 
+  `w3 space use`.
+- Execute the following command to retrieve your Agent private key and DID: 
+`npx ucan-key ed`. 
+The private key (starting with `Mg...`) is the value to be used in the environment variable `IPFS_STORAGE_KEY`.
+- Retrieve the PROOF by executing the following:
+  ```w3 delegation create <did_from_ucan-key_command_above> | base64```. 
+  The output of this command is the value to be used in the environment variable `IPFS_STORAGE_PROOF`.
+
+To summarise, the process of configuring delegated access to the w3up API consists of execution the following command sequence:
+1. `w3 login`
+2. `w3 space create`
+3. `w3 space use`
+4. `npx ucan-key ed`
+5. `w3 delegation`
+
+The complete guide to using the new w3up web3.storage API is available at https://web3.storage/docs/w3up-client.
+
+#### 4.3 Setting up IPFS Filebase Bucket:
+
+To configure the Filebase IPFS provider, set the following variables in the file *`./configs/.env.<environment>.guardian.system`*
+
+   ```
+   IPFS_STORAGE_API_KEY="Generated Firebase Bucket Token"
+   IPFS_PROVIDER="filebase"
+   ```
+
+Create a new "bucket" on Filebase since we utilize the **IPFS Pinning Service API Endpoint** service. The **token**
+generated for a bucket corresponds to the **IPFS_STORAGE_API_KEY** environment variable within the guardian's
+configuration.
+
+For detailed setup instructions, refer to the
+official <https://docs.filebase.com/api-documentation/ipfs-pinning-service-api>.
   
-5. Build and launch with Docker. Please note that this build is meant to be used in production and will not contain any debug information. From the project's root folder:
+#### 5. Setting up Chat GPT API KEY to enable AI Search and Guided Search:
+
+For setting up AI and Guided Search, we need to set OPENAI_API_KEY variable in `./configs/.env*` files.
+
+```shell
+OPENAI_API_KEY="..."
+```
+
+#### 6. Build and launch with Docker. Please note that this build is meant to be used in production and will not contain any debug information. From the project's root folder:
 
    ```shell
    docker compose up -d --build
@@ -197,7 +247,7 @@ For setup IPFS web3storage node you need to set variables in file `./configs/.en
    
 > **_NOTE:_** About docker-compose: from the end of June 2023 Compose V1 won’t be supported anymore and will be removed from all Docker Desktop versions. Make sure you use Docker Compose V2 (comes with Docker Desktop > 3.6.0) as at https://docs.docker.com/compose/install/
 
-6. Browse to <http://localhost:3000> and complete the setup.
+#### 7. Browse to <http://localhost:3000> and complete the setup.
 
 for other examples go to:
 * [Deploying Guardian using a specific environment( DEVELOP)](https://docs.hedera.com/guardian/guardian/readme/getting-started/installation/building-from-source-and-run-using-docker/deploying-guardian-using-a-specific-environment-develop.md)
@@ -212,9 +262,10 @@ If you want to manually build every component with debug information, then build
 ### Prerequisites for manual installation
 
 * [MongoDB V6](https://www.mongodb.com)
-* [NodeJS V16](https://nodejs.org)
+* [NodeJS V20](https://nodejs.org)
 * [Yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable)
 * [Nats 1.12.2](https://nats.io/)
+* [Redict 7.3.0](https://redict.io/)
 
 ### Build and start each component
 
@@ -246,15 +297,20 @@ Install, configure and start all the prerequisites, then build and start each co
    OPERATOR_ID="..."
    OPERATOR_KEY="..."
    ```
+- Setting up Chat GPT API KEY to enable AI Search and Guided Search:
+For setting up AI and Guided Search, we need to set OPENAI_API_KEY variable in `./ai-service/configs/.env*` files.
 
+  ```plaintext
+   OPENAI_KEY="..."
+  ```
 > **_NOTE:_** Once you start each service, please wait for the initialization process to be completed.**
 
-1. Clone the repo
+#### 1. Clone the repo
 
    ```shell
    git clone https://github.com/hashgraph/guardian.git
    ```
-2. Install dependencies
+#### 2. Install dependencies
 
    Yarn:
    ```
@@ -265,7 +321,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm install
    ```   
-3. From the **interfaces** folder
+#### 3. From the **interfaces** folder
 
    Yarn:
    ```
@@ -277,7 +333,7 @@ Install, configure and start all the prerequisites, then build and start each co
    npm --workspace=@guardian/interfaces run build
    ```
 
-4. From the **common** folder
+#### 4. From the **common** folder
 
    Yarn:
    ```
@@ -288,7 +344,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm --workspace=@guardian/common run build
    ```
-5. From the **logger-service** folder
+#### 5. From the **logger-service** folder
 
    To build the service:
 
@@ -315,7 +371,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm --workspace=logger-service start
    ```
-6. From the **auth-service** folder
+#### 6. From the **auth-service** folder
 
    To build the service:
 
@@ -343,7 +399,7 @@ Install, configure and start all the prerequisites, then build and start each co
    npm --workspace=auth-service start
    ```
    
-7. From the **policy-service** folder
+#### 7. From the **policy-service** folder
 
    To build the service:
 
@@ -369,7 +425,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm --workspace=policy-service start
    ```   
-8. Build and start **worker-service** service
+#### 8. Build and start **worker-service** service
 
    Yarn:
    To build the service:
@@ -393,7 +449,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm --workspace=worker-service start
    ```
-9. Build and start **notification-service** service
+#### 9. Build and start **notification-service** service
 
    To build the service:
 
@@ -419,7 +475,7 @@ Install, configure and start all the prerequisites, then build and start each co
    ```
    npm --workspace=notification-service start
    ```
-10. Build and start **guardian-service** service
+#### 10. Build and start **guardian-service** service
 
 To build the service:
 
@@ -447,7 +503,7 @@ Npm:
 npm --workspace=guardian-service start
 ```
 
-11. From the **api-gateway** folder
+#### 11. From the **api-gateway** folder
 
    To build the service:
 
@@ -475,7 +531,7 @@ Npm:
 npm --workspace=api-gateway start
 ```
 
-12. From the **mrv-sender** folder
+#### 12. From the **mrv-sender** folder
 
     To build the service:
 
@@ -492,7 +548,33 @@ npm --workspace=api-gateway start
     npm start
     ```
 
-13. From the **frontend** folder
+#### 13. From the **ai-service** folder
+
+To build the service:
+
+Yarn:
+```shell
+yarn workspace ai-service run build
+```
+
+Npm:
+```
+npm --workspace=ai-service run build
+```
+
+Configure the service as previously described. Do not need special configuration variables.
+
+Yarn:
+```
+yarn workspace ai-service start
+```
+
+Npm:
+```
+npm --workspace=ai-service start
+```
+
+#### 14. From the **frontend** folder
 
     To build the service:
 
@@ -509,9 +591,9 @@ npm --workspace=api-gateway start
 
 ## Configuring a Hedera local network
 
-1. Install a Hedera Local Network following the [official documentation](https://github.com/hashgraph/hedera-local-node#docker)
+#### 1. Install a Hedera Local Network following the [official documentation](https://github.com/hashgraph/hedera-local-node#docker)
 
-2. Configure Guardian's configuration files `/.env/.env.docker` accordingly:
+#### 2. Configure Guardian's configuration files `/.env/.env.docker` accordingly:
 
    ```shell
    OPERATOR_ID=""
@@ -529,9 +611,9 @@ npm --workspace=api-gateway start
    * Set `LOCALNODE_PROTOCOL` to `http` or `https` accordingly with your local node configuration (it uses HTTP by default).
 
 ## Configuring Hashicorp Vault
-1. Configure .env/.env.docker files in the auth-service folder
+#### 1. Configure .env/.env.docker files in the auth-service folder
 
-    ```
+   ```
     VAULT_PROVIDER = "hashicorp"
    ```
  
@@ -543,7 +625,7 @@ npm --workspace=api-gateway start
    2. HASHICORP_TOKEN : the token from the Hashicorp vault.
    3. HASHICORP_WORKSPACE : this is only needed when we are using cloud vault for Hashicorp. Default value is "admin".
 
-2. Hashicorp should be configured with the created Key-Value storage, named "secret" by default, with the settingKey=<value> records for the following keys:
+#### 2. Hashicorp should be configured with the created Key-Value storage, named "secret" by default, with the settingKey=<value> records for the following keys:
     1. OPERATOR_ID
     2. OPERATOR_KEY
     3. IPFS_STORAGE_API_KEY
@@ -561,19 +643,19 @@ npm --workspace=api-gateway start
  
 ## Local development using Docker
 
-1. create .env file at the root level and update all variable requires for docker
+#### 1. create .env file at the root level and update all variable requires for docker
 
    ```shell
    cp .env.example .env
    ```
 
-2. Start local development using docker compose
+#### 2. Start local development using docker compose
 
    ```shell
    docker compose -f docker-compose-dev.yml up --build
    ```
 
-3. Access local development using <http://localhost:3000> or <http://localhost:4200>
+#### 3. Access local development using <http://localhost:3000> or <http://localhost:4200>
 
 ## Troubleshoot
 

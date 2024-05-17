@@ -1,7 +1,7 @@
 import { PolicyType } from '@guardian/interfaces';
 import { DatabaseServer, Policy } from '@guardian/common';
-import { IPolicyUser } from './policy-user';
-import { ExternalEvent } from './interfaces/external-event';
+import { IPolicyUser } from './policy-user.js';
+import { ExternalEvent } from './interfaces/external-event.js';
 
 /**
  * Policy component utils
@@ -75,7 +75,7 @@ export class PolicyComponentsUtils {
             }
 
             result.userGroups = groups;
-            if (policy.status === PolicyType.PUBLISH) {
+            if (policy.status === PolicyType.PUBLISH || policy.status === PolicyType.DISCONTINUED) {
                 const multiPolicy = await DatabaseServer.getMultiPolicy(policy.instanceTopicId, did);
                 result.multiPolicyStatus = multiPolicy?.type;
             }

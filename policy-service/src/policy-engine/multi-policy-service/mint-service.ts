@@ -1,32 +1,9 @@
-import { AnyBlockType } from '@policy-engine/policy-engine.interface';
-import {
-    ContractParamType,
-    ExternalMessageEvents,
-    GenerateUUIDv4,
-    IRootConfig,
-    NotificationAction,
-    WorkerTaskType
-} from '@guardian/interfaces';
-import {
-    ExternalEventChannel,
-    Logger,
-    Token,
-    MultiPolicy,
-    KeyType,
-    Wallet,
-    DatabaseServer,
-    MessageAction,
-    MessageServer,
-    SynchronizationMessage,
-    TopicConfig,
-    VcDocumentDefinition as VcDocument,
-    Workers,
-    NotificationHelper,
-    Users,
-} from '@guardian/common';
+import { AnyBlockType } from '../policy-engine.interface.js';
+import { ContractParamType, ExternalMessageEvents, GenerateUUIDv4, ISignOptions, NotificationAction, WorkerTaskType } from '@guardian/interfaces';
+import { DatabaseServer, ExternalEventChannel, KeyType, Logger, MessageAction, MessageServer, MultiPolicy, NotificationHelper, SynchronizationMessage, Token, TopicConfig, Users, VcDocumentDefinition as VcDocument, Wallet, Workers, } from '@guardian/common';
 import { AccountId, PrivateKey, TokenId } from '@hashgraph/sdk';
-import { PolicyUtils } from '@policy-engine/helpers/utils';
-import { IPolicyUser } from '@policy-engine/policy-user';
+import { PolicyUtils } from '../helpers/utils.js';
+import { IHederaCredentials, IPolicyUser } from '../policy-user.js';
 
 /**
  * Token Config
@@ -86,7 +63,7 @@ export class MintService {
     private static async mintNonFungibleTokens(
         token: TokenConfig,
         tokenValue: number,
-        root: IRootConfig,
+        root: IHederaCredentials,
         targetAccount: string,
         uuid: string,
         transactionMemo: string,
@@ -134,8 +111,13 @@ export class MintService {
                 1, 10
             );
         };
-        const mintAndTransferNFT = (metaData: string[]) =>
-            mintNFT(metaData).then(transferNFT);
+        const mintAndTransferNFT = async (metaData: string[]) => {
+            try {
+                return await transferNFT(await mintNFT(metaData));
+            } catch (e) {
+                return null;
+            }
+        }
         const mintId = Date.now();
         MintService.log(`Mint(${mintId}): Start (Count: ${tokenValue})`, ref);
 
@@ -156,17 +138,16 @@ export class MintService {
                 ref
             );
             notifier?.step(
-                `Mint(${token.tokenName}): Minting and transferring (Chunk: ${
-                    i * MintService.BATCH_NFT_MINT_SIZE + 1
+                `Mint(${token.tokenName}): Minting and transferring (Chunk: ${i * MintService.BATCH_NFT_MINT_SIZE + 1
                 }/${tasks.length * MintService.BATCH_NFT_MINT_SIZE})`,
                 (i * MintService.BATCH_NFT_MINT_SIZE +
                     1) / (tasks.length * MintService.BATCH_NFT_MINT_SIZE) *
-                    100
+                100
             );
             try {
                 const results = await Promise.all(dataChunk.map(mintAndTransferNFT));
                 for (const serials of results) {
-                    if (serials) {
+                    if (Array.isArray(serials)) {
                         for (const n of serials) {
                             result.push(n);
                         }
@@ -175,9 +156,8 @@ export class MintService {
             } catch (error) {
                 notifier?.stop({
                     title: 'Minting tokens',
-                    message: `Mint(${
-                        token.tokenName
-                    }): Error (${PolicyUtils.getErrorMessage(error)})`,
+                    message: `Mint(${token.tokenName
+                        }): Error (${PolicyUtils.getErrorMessage(error)})`,
                 });
                 MintService.error(
                     `Mint(${mintId}): Error (${PolicyUtils.getErrorMessage(
@@ -217,7 +197,7 @@ export class MintService {
     private static async mintFungibleTokens(
         token: TokenConfig,
         tokenValue: number,
-        root: IRootConfig,
+        root: IHederaCredentials,
         targetAccount: string,
         uuid: string,
         transactionMemo: string,
@@ -303,28 +283,6 @@ export class MintService {
     }
 
     /**
-     * Send Synchronization Message
-     * @param ref
-     * @param multipleConfig
-     * @param root
-     * @param data
-     */
-    private static async sendMessage(
-        ref: AnyBlockType,
-        multipleConfig: MultiPolicy,
-        root: IRootConfig,
-        data: any
-    ) {
-        const message = new SynchronizationMessage(MessageAction.Mint);
-        message.setDocument(multipleConfig, data);
-        const messageServer = new MessageServer(root.hederaAccountId, root.hederaAccountKey, ref.dryRun);
-        const topic = new TopicConfig({ topicId: multipleConfig.synchronizationTopicId }, null, null);
-        await messageServer
-            .setTopicObject(topic)
-            .sendMessage(message);
-    }
-
-    /**
      * Mint
      * @param ref
      * @param token
@@ -339,7 +297,7 @@ export class MintService {
         token: Token,
         tokenValue: number,
         documentOwner: IPolicyUser,
-        root: IRootConfig,
+        root: IHederaCredentials,
         targetAccount: string,
         messageId: string,
         transactionMemo: string,
@@ -348,6 +306,8 @@ export class MintService {
         const multipleConfig = await MintService.getMultipleConfig(ref, documentOwner);
         const users = new Users();
         const documentOwnerUser = await users.getUserById(documentOwner.did);
+        const wallet = new Wallet();
+        const signOptions = await wallet.getUserSignOptions(documentOwnerUser);
         const policyOwner = await users.getUserById(ref.policyOwner);
         const notifier = NotificationHelper.init(
             [documentOwnerUser?.id, policyOwner?.id],
@@ -365,10 +325,10 @@ export class MintService {
                 tokenId: token.tokenId,
                 amount: tokenValue,
                 memo: transactionMemo,
-                target: targetAccount
-            });
+                target: targetAccount,
+            }, signOptions);
             if (multipleConfig.type === 'Main') {
-                const user = await PolicyUtils.getHederaAccount(ref, documentOwner.did);
+                const user = await PolicyUtils.getUserCredentials(ref, documentOwner.did);
                 await DatabaseServer.createMultiPolicyTransaction({
                     uuid: GenerateUUIDv4(),
                     policyId: ref.policyId,
@@ -426,6 +386,30 @@ export class MintService {
     }
 
     /**
+     * Send Synchronization Message
+     * @param ref
+     * @param multipleConfig
+     * @param root
+     * @param data
+     * @param signOptions
+     */
+    private static async sendMessage(
+        ref: AnyBlockType,
+        multipleConfig: MultiPolicy,
+        root: IHederaCredentials,
+        data: any,
+        signOptions: ISignOptions
+    ) {
+        const message = new SynchronizationMessage(MessageAction.Mint);
+        message.setDocument(multipleConfig, data);
+        const messageServer = new MessageServer(root.hederaAccountId, root.hederaAccountKey, signOptions, ref.dryRun);
+        const topic = new TopicConfig({ topicId: multipleConfig.synchronizationTopicId }, null, null);
+        await messageServer
+            .setTopicObject(topic)
+            .sendMessage(message);
+    }
+
+    /**
      * Mint
      * @param ref
      * @param token
@@ -436,7 +420,7 @@ export class MintService {
      * @param uuid
      */
     public static async multiMint(
-        root: IRootConfig,
+        root: IHederaCredentials,
         token: Token,
         tokenValue: number,
         targetAccount: string,
@@ -516,7 +500,7 @@ export class MintService {
         ref: AnyBlockType,
         token: Token,
         tokenValue: number,
-        root: IRootConfig,
+        root: IHederaCredentials,
         targetAccount: string,
         uuid: string
     ): Promise<void> {

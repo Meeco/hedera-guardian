@@ -1,21 +1,12 @@
-import { BasicBlock } from '@policy-engine/helpers/decorators';
-import { PolicyComponentsUtils } from '@policy-engine/policy-components-utils';
-import { ChildrenType, ControlType } from '@policy-engine/interfaces/block-about';
-import { AnyBlockType, IPolicyDocument } from '@policy-engine/policy-engine.interface';
-import { IPolicyUser } from '@policy-engine/policy-user';
-import { BlockActionError } from '@policy-engine/errors';
-import { GenerateUUIDv4, SchemaCategory, SchemaHelper, SchemaStatus, TagType } from '@guardian/interfaces';
-import {
-    Tag,
-    MessageAction,
-    MessageServer,
-    MessageType,
-    TagMessage,
-    TopicConfig,
-    VcHelper,
-    DatabaseServer,
-} from '@guardian/common';
-import { IHederaAccount, PolicyUtils } from '@policy-engine/helpers/utils';
+import { BasicBlock } from '../helpers/decorators/index.js';
+import { PolicyComponentsUtils } from '../policy-components-utils.js';
+import { ChildrenType, ControlType } from '../interfaces/block-about.js';
+import { AnyBlockType, IPolicyDocument } from '../policy-engine.interface.js';
+import { IHederaCredentials, IPolicyUser } from '../policy-user.js';
+import { BlockActionError } from '../errors/index.js';
+import { ISignOptions, SchemaCategory, SchemaHelper, SchemaStatus, TagType } from '@guardian/interfaces';
+import { DatabaseServer, MessageAction, MessageServer, MessageType, Tag, TagMessage, TopicConfig, VcHelper, } from '@guardian/common';
+import { PolicyUtils } from '../helpers/utils.js';
 
 /**
  * Tag Manager
@@ -137,13 +128,14 @@ export class TagsManagerBlock {
                     throw new BlockActionError(`Invalid tag`, ref.blockType, ref.uuid);
                 }
 
-                const hederaAccount = await PolicyUtils.getHederaAccount(ref, user.did);
+                const userCred = await PolicyUtils.getUserCredentials(ref, user.did);
                 //Document
                 if (tag.document && typeof tag.document === 'object') {
+                    const didDocument = await userCred.loadDidDocument(ref);
+
                     const vcHelper = new VcHelper();
                     let credentialSubject: any = { ...tag.document } || {};
                     credentialSubject.id = user.did;
-
                     const tagSchema = await DatabaseServer.getSchema({ iri: `#${credentialSubject.type}` });
                     if (
                         tagSchema &&
@@ -158,10 +150,12 @@ export class TagsManagerBlock {
                     if (ref.dryRun) {
                         vcHelper.addDryRunContext(credentialSubject);
                     }
-                    const vcObject = await vcHelper.createVC(
-                        user.did,
-                        hederaAccount.hederaAccountKey,
-                        credentialSubject
+                    const uuid = await ref.components.generateUUID();
+                    const vcObject = await vcHelper.createVerifiableCredential(
+                        credentialSubject,
+                        didDocument,
+                        null,
+                        { uuid }
                     );
                     tag.document = vcObject.getDocument();
                 } else {
@@ -170,7 +164,8 @@ export class TagsManagerBlock {
 
                 const target = await this.getTarget(TagType.PolicyDocument, tag.localTarget || tag.target);
                 if (target) {
-                    tag.uuid = tag.uuid || GenerateUUIDv4();
+                    const uuid: string = await ref.components.generateUUID();
+                    tag.uuid = tag.uuid || uuid;
                     tag.operation = 'Create';
                     tag.entity = TagType.PolicyDocument;
                     tag.target = null;
@@ -187,7 +182,9 @@ export class TagsManagerBlock {
                 if (target.target && target.topicId) {
                     tag.target = target.target;
                     tag.status = 'Published';
-                    await this.publishTag(tag, target.topicId, hederaAccount);
+                    const hederaCred = await userCred.loadHederaCredentials(ref);
+                    const signOptions = await userCred.loadSignOptions(ref);
+                    await this.publishTag(tag, target.topicId, hederaCred, signOptions);
                 } else {
                     tag.target = null;
                     tag.localTarget = target.id;
@@ -288,11 +285,14 @@ export class TagsManagerBlock {
 
     /**
      * Publish tag
-     * @param tag
+     * @param item
+     * @param topicId
+     * @param owner
+     * @param signOptions
      */
-    private async publishTag(item: Tag, topicId: string, owner: IHederaAccount): Promise<Tag> {
+    private async publishTag(item: Tag, topicId: string, owner: IHederaCredentials, signOptions: ISignOptions): Promise<Tag> {
         const ref = PolicyComponentsUtils.GetBlockRef<AnyBlockType>(this);
-        const messageServer = new MessageServer(owner.hederaAccountId, owner.hederaAccountKey, ref.dryRun);
+        const messageServer = new MessageServer(owner.hederaAccountId, owner.hederaAccountKey, signOptions, ref.dryRun);
         const topic = await ref.databaseServer.getTopicById(topicId);
         const topicConfig = await TopicConfig.fromObject(topic, !ref.dryRun);
 
@@ -316,8 +316,10 @@ export class TagsManagerBlock {
      */
     private async deleteTag(item: Tag, topicId: string, owner: string): Promise<Tag> {
         const ref = PolicyComponentsUtils.GetBlockRef<AnyBlockType>(this);
-        const user = await PolicyUtils.getHederaAccount(ref, owner);
-        const messageServer = new MessageServer(user.hederaAccountId, user.hederaAccountKey, ref.dryRun);
+        const user = await PolicyUtils.getUserCredentials(ref, owner);
+        const userCred = await user.loadHederaCredentials(ref);
+        const signOptions = await user.loadSignOptions(ref);
+        const messageServer = new MessageServer(userCred.hederaAccountId, userCred.hederaAccountKey, signOptions, ref.dryRun);
         const topic = await ref.databaseServer.getTopicById(topicId);
         const topicConfig = await TopicConfig.fromObject(topic, !ref.dryRun);
 
@@ -346,7 +348,7 @@ export class TagsManagerBlock {
     ): Promise<void> {
         const ref = PolicyComponentsUtils.GetBlockRef<AnyBlockType>(this);
 
-        const messageServer = new MessageServer(null, null, ref.dryRun);
+        const messageServer = new MessageServer(null, null, null, ref.dryRun);
         const messages = await messageServer.getMessages<TagMessage>(topicId, MessageType.Tag);
         const map = new Map<string, any>();
         for (const message of messages) {

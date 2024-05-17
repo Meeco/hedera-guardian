@@ -1,17 +1,17 @@
-import { BlockModel } from '../models/block.model';
-import { ICompareOptions } from '../interfaces/compare-options.interface';
-import { Status } from '../types/status.type';
-import { EventModel } from '../models/event.model';
-import { PropertiesRate } from './properties-rate';
-import { EventsRate } from './events-rate';
-import { PermissionsRate } from './permissions-rate';
-import { ArtifactsRate } from './artifacts-rate';
-import { IRate } from '../interfaces/rate.interface';
-import { ArtifactModel } from '../models/artifact.model';
-import { Rate } from './rate';
-import { AnyPropertyModel, PropertyModel } from '../models/property.model';
-import { IRateMap } from '../interfaces/rate-map.interface';
-import { CompareUtils } from '../utils/utils';
+import { BlockModel } from '../models/block.model.js';
+import { CompareOptions } from '../interfaces/compare-options.interface.js';
+import { Status } from '../types/status.type.js';
+import { EventModel } from '../models/event.model.js';
+import { PropertiesRate } from './properties-rate.js';
+import { EventsRate } from './events-rate.js';
+import { PermissionsRate } from './permissions-rate.js';
+import { ArtifactsRate } from './artifacts-rate.js';
+import { IRate } from '../interfaces/rate.interface.js';
+import { ArtifactModel } from '../models/artifact.model.js';
+import { Rate } from './rate.js';
+import { AnyPropertyModel, PropertyModel } from '../models/property.model.js';
+import { IRateMap } from '../interfaces/rate-map.interface.js';
+import { CompareUtils } from '../utils/utils.js';
 
 /**
  * Calculates the difference between two Blocks
@@ -94,7 +94,7 @@ export class BlocksRate extends Rate<BlockModel> {
     private compare(
         block1: BlockModel,
         block2: BlockModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: string[] = [];
         const map: { [key: string]: IRateMap<PropertyModel<any>> } = {};
@@ -144,7 +144,7 @@ export class BlocksRate extends Rate<BlockModel> {
     private comparePermissions(
         block1: BlockModel,
         block2: BlockModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: IRateMap<string>[] = [];
         if (block1) {
@@ -176,7 +176,7 @@ export class BlocksRate extends Rate<BlockModel> {
     private compareEvents(
         block1: BlockModel,
         block2: BlockModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: IRateMap<EventModel>[] = [];
         if (block1) {
@@ -208,7 +208,7 @@ export class BlocksRate extends Rate<BlockModel> {
     private compareArtifacts(
         block1: BlockModel,
         block2: BlockModel,
-        options: ICompareOptions
+        options: CompareOptions
     ): IRate<any>[] {
         const list: IRateMap<ArtifactModel>[] = [];
         if (block1) {
@@ -235,7 +235,7 @@ export class BlocksRate extends Rate<BlockModel> {
      * @param options - comparison options
      * @public
      */
-    public override calc(options: ICompareOptions): void {
+    public override calc(options: CompareOptions): void {
         const block1 = this.left;
         const block2 = this.right;
 

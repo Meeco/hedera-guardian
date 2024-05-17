@@ -1,10 +1,8 @@
-# Ecosystem Environments
+# 🏡 Ecosystem Environments
 
 The set of environment parameters represent the context in which a service is executed. Each service needs to know this context to adapt its behavour to the real working condition. At the service level the node .env library allows to read environment of the kind \<key,value> this library by default reads from .env file. The data are reads in a process .environment data structure available in the execution context of Node process. A unique file defines the environment and keeps the responsibility to create the shared operative ecosystem.
 
 All Guardian Micro-services share a common set of Environment variables. In this way, Guardian can be seen as an ecosystem with several services and common set of parameters leading his behavour. This environment parameters are shared between all the services of the Guardian ecosystem. All variables are defined in a `.env.<GUARDIAN_ENV>.guardian.system` file. The file name is parametric so it is possible to define a different files for different possible running configuration, for example production, develop, test1. The ecosystem environment file follow the .env.template.guardian.system file that let write new configurations with the set of necessary variables. Both the template file and the resulting environments files are in the folder `./configs/`, they can be discriminated by its name to spread the session.
-
-<figure><img src="https://camo.githubusercontent.com/ac5090d84e706daad4e1c9e9df910197a031ec116411353a4cf307f7b7c02cc0/68747470733a2f2f696d616765732e7a656e68756275736572636f6e74656e742e636f6d2f3633646265326264346434643632393062656436373830632f31323739306364362d313962352d346633632d616164322d396432383038316538343938" alt=""><figcaption></figcaption></figure>
 
 The parameter GUARDIAN\_ENV is defined univocally in an `.env` file. The containers orchestration will be responsible to push the environment in to the container in a way the environment will be available to the Node server. For example in the execution of Guardian using docker compose tool the tool inject the environment in each container. Docker compose push the environment in the container by the means of the env-file attribute and the environment attribute. Environment attribute can be parametrized using the variables defined in the `.env` file located next to the docker\_compose.yaml this paramenter is used to select the file to read the environment variables from. All the variables defined in the file will be loaded in the container environment and be available to Node.
 
@@ -59,7 +57,7 @@ PREUSED_HEDERA_NET="testnet"
 # TESTNET
 OPERATOR_ID="0.0.3422318"
 OPERATOR_KEY="302e020100300506032b6570042..................34c805215e7099b30abd63fd1c58bd3c"
-INITIALIZATION_TOPIC_ID="0.0.2411"
+INITIALIZATION_TOPIC_ID="0.0.1960"
 .......
 .....
 
@@ -82,7 +80,7 @@ in file ./guardian/guardian-service/configs/.env.guardian.develop
     # TESTNET
     OPERATOR_ID="0.0.4523185"
     OPERATOR_KEY="302e02010030050603.........................05215e7099b30abd63fd1c58bd3c"
-    INITIALIZATION_TOPIC_ID="0.0.2411"
+    INITIALIZATION_TOPIC_ID="0.0.1960"
 ```
 
 #### RUN TIME RESULT
@@ -102,7 +100,7 @@ INITIAL_STANDARD_REGISTRY_BALANCE="100"
 # TESTNET
 OPERATOR_ID="0.0.3422318"
 OPERATOR_KEY="302e020100300506032b6570042..................34c805215e7099b30abd63fd1c58bd3c"
-INITIALIZATION_TOPIC_ID="0.0.2411"
+INITIALIZATION_TOPIC_ID="0.0.1960"
 ```
 
 this shows that the root level environment is loaded: OPERATOR\_ID defined in the root level "0.0.3422318" is used while "0.0.4523185" specified at service level remains unused.
@@ -137,7 +135,7 @@ PREUSED_HEDERA_NET="mainnet"
 # TESTNET
 OPERATOR_ID="0.0.3422318"
 OPERATOR_KEY="302e020100300506032b6570042..................34c805215e7099b30abd63fd1c58bd3c"
-INITIALIZATION_TOPIC_ID="0.0.2411"
+INITIALIZATION_TOPIC_ID="0.0.1960"
 .........
 .......
 
@@ -162,7 +160,7 @@ INITIAL_STANDARD_REGISTRY_BALANCE="100"
 # TESTNET
 OPERATOR_ID="0.0.4523185"
 OPERATOR_KEY="302e02010030050603.........................05215e7099b30abd63fd1c58bd3c"
-INITIALIZATION_TOPIC_ID="0.0.2411"
+INITIALIZATION_TOPIC_ID="0.0.1960"
 ```
 
 #### RUN TIME RESULT:
@@ -182,7 +180,7 @@ INITIAL_STANDARD_REGISTRY_BALANCE="100"
 # TESTNET
 OPERATOR_ID="0.0.3422318"
 OPERATOR_KEY="302e020100300506032b6570042..................34c805215e7099b30abd63fd1c58bd3c"
-INITIALIZATION_TOPIC_ID="0.0.2411"
+INITIALIZATION_TOPIC_ID="0.0.1960"
 ```
 
 ### 3) Configure each service without an orchestrator
@@ -209,7 +207,7 @@ Configure the worker-service in ./guardian/worker-service/configs/.env.worker.de
 
 ```
 IPFS_TIMEOUT="720"
-IPFS_PROVIDER="web3storage" # 'web3storage' or 'local'
+IPFS_PROVIDER="web3storage" # 'filebase', 'web3storage' or 'local'
 #Single quote IPFS_PUBLIC_GATEWAY
 IPFS_PUBLIC_GATEWAY='https://ipfs.io/ipfs/${cid}'
 IPFS_STORAGE_API_KEY="..."

@@ -1,12 +1,23 @@
-import { Guardians } from '@helpers/guardians';
-import { IToken, ITokenInfo, TaskAction, UserRole } from '@guardian/interfaces';
+import { Guardians } from '../../helpers/guardians.js';
+import { ITokenInfo, TaskAction, UserRole } from '@guardian/interfaces';
 import { Logger, RunFunctionAsync } from '@guardian/common';
-import { PolicyEngine } from '@helpers/policy-engine';
-import { TaskManager } from '@helpers/task-manager';
-import { ServiceError } from '@helpers/service-requests-base';
-import { prepareValidationResponse } from '@middlewares/validation';
-import { Controller, Delete, Get, HttpCode, HttpException, HttpStatus, Post, Put, Req, Response } from '@nestjs/common';
-import { checkPermission } from '@auth/authorization-helper';
+import { PolicyEngine } from '../../helpers/policy-engine.js';
+import { TaskManager } from '../../helpers/task-manager.js';
+import { ServiceError } from '../../helpers/service-requests-base.js';
+import { prepareValidationResponse } from '../../middlewares/validation/index.js';
+import {
+    Controller,
+    Delete,
+    Get,
+    HttpCode,
+    HttpException,
+    HttpStatus,
+    Post,
+    Put,
+    Req,
+    Response,
+} from '@nestjs/common';
+import { checkPermission } from '../../auth/authorization-helper.js';
 import {
     ApiInternalServerErrorResponse,
     ApiOkResponse,
@@ -17,8 +28,12 @@ import {
     ApiTags,
     ApiBearerAuth,
     ApiParam,
+    ApiBody,
+    ApiSecurity,
+    ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { InternalServerErrorDTO } from '@middlewares/validation/schemas';
+import { InternalServerErrorDTO } from '../../middlewares/validation/schemas/index.js';
+import { Auth } from '../../auth/auth.decorator.js';
 
 /**
  * Token route
@@ -96,19 +111,32 @@ export class TokensApi {
             const user = req.user;
             const policyId = req.query?.policy;
 
-            let tokens: IToken[] = [];
-            if (user.role === UserRole.STANDARD_REGISTRY) {
-                tokens = await guardians.getTokens({ did: user.did });
-                const map = await engineService.getTokensMap(user.did);
-                tokens = await setDynamicTokenPolicy(tokens, engineService);
-                tokens = setTokensPolicies(tokens, map, policyId, false);
-            } else if (user.did) {
-                tokens = await guardians.getAssociatedTokens(user.did);
-                const map = await engineService.getTokensMap(user.parent, 'PUBLISH');
-                tokens = await setDynamicTokenPolicy(tokens, engineService);
-                tokens = setTokensPolicies(tokens, map, policyId, true);
+            let pageIndex: number;
+            let pageSize: number;
+            if (req.query && req.query.pageIndex && req.query.pageSize) {
+                pageIndex = Number.parseInt(req.query.pageIndex, 10);
+                pageSize = Number.parseInt(req.query.pageSize, 10);
             }
-            return res.json(tokens);
+
+            let tokensAndCount = {
+                items: [],
+                count: 0
+            }
+
+            if (user.role === UserRole.STANDARD_REGISTRY) {
+                tokensAndCount = await guardians.getTokensPage(user.did, pageIndex, pageSize);
+                const map = await engineService.getTokensMap(user.did);
+                tokensAndCount.items = await setDynamicTokenPolicy(tokensAndCount.items, engineService);
+                tokensAndCount.items = setTokensPolicies(tokensAndCount.items, map, policyId, false);
+            } else if (user.did) {
+                tokensAndCount = await guardians.getAssociatedTokens(user.did, pageIndex, pageSize);
+                const map = await engineService.getTokensMap(user.parent, 'PUBLISH');
+                tokensAndCount.items = await setDynamicTokenPolicy(tokensAndCount.items, engineService);
+                tokensAndCount.items = setTokensPolicies(tokensAndCount.items, map, policyId, true);
+            }
+            return res
+                .setHeader('X-Total-Count', tokensAndCount.count)
+                .json(tokensAndCount.items);
         } catch (error) {
             new Logger().error(error, ['API_GATEWAY']);
             throw error;
@@ -164,6 +192,66 @@ export class TokensApi {
         });
 
         return res.status(202).send(task);
+    }
+
+    @Put('/')
+    @Auth(
+        UserRole.STANDARD_REGISTRY
+    )
+    @ApiSecurity('bearerAuth')
+    @ApiOperation({
+        summary: 'Update token.',
+        description: 'Update token. Only users with the Standard Registry role are allowed to make the request.',
+    })
+    @ApiBody({
+        description: 'Token',
+        required: true,
+        schema: {
+            type: 'object'
+        }
+    })
+    @ApiOkResponse({
+        description: 'Updated token.',
+        schema: {
+            'type': 'object'
+        },
+    })
+    @ApiForbiddenResponse({
+        description: 'Forbidden.',
+    })
+    @ApiUnprocessableEntityResponse({
+        description: 'Unprocessable entity.'
+    })
+    @ApiInternalServerErrorResponse({
+        description: 'Internal server error.',
+        type: InternalServerErrorDTO
+    })
+    @HttpCode(HttpStatus.CREATED)
+    async updateToken(@Req() req): Promise<any> {
+        await checkPermission(UserRole.STANDARD_REGISTRY)(req.user);
+        const user = req.user;
+        const token = req.body;
+
+        if (!user.did) {
+            throw new HttpException('User is not registered', HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        if (!token.tokenId) {
+            throw new HttpException('The field tokenId is required', HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        const guardians = new Guardians();
+        const tokenObject = await guardians.getTokenById(token.tokenId);
+
+        if (!tokenObject) {
+            throw new HttpException('Token not found', HttpStatus.NOT_FOUND)
+        }
+
+        if (tokenObject.owner !== user.did) {
+            throw new HttpException('Invalid creator.', HttpStatus.FORBIDDEN)
+        }
+
+        return await guardians.updateToken(token);
     }
 
     @Put('/push')
@@ -246,7 +334,7 @@ export class TokensApi {
                 await guardians.deleteTokenAsync(tokenId, task);
             }, async (error) => {
                 new Logger().error(error, ['API_GATEWAY']);
-                taskManager.addError(task.taskId, {code: error.code || 500, message: error.message});
+                taskManager.addError(task.taskId, { code: error.code || 500, message: error.message });
             });
 
             return res.status(202).send(task);
@@ -546,6 +634,10 @@ export class TokensApi {
         return res.status(202).send(task);
     }
 
+    /**
+     * @param req
+     * @param res
+     */
     @Get('/:tokenId/:username/info')
     @HttpCode(HttpStatus.OK)
     async getTokenInfo(@Req() req, @Response() res): Promise<any> {
@@ -572,6 +664,10 @@ export class TokensApi {
         }
     }
 
+    /**
+     * @param req
+     * @param res
+     */
     @Get('/:tokenId/serials')
     @ApiBearerAuth()
     @ApiExtraModels(InternalServerErrorDTO)

@@ -1,32 +1,10 @@
-import {
-    GenerateUUIDv4,
-    ISchema,
-    ModelHelper,
-    ModuleStatus,
-    Schema,
-    SchemaCategory,
-    SchemaEntity,
-    SchemaHelper,
-    SchemaStatus
-} from '@guardian/interfaces';
-import {
-    DatabaseServer,
-    Logger,
-    MessageAction,
-    MessageServer,
-    MessageType,
-    replaceValueRecursive,
-    Schema as SchemaCollection,
-    SchemaConverterUtils,
-    SchemaMessage,
-    Tag,
-    TagMessage,
-    UrlType
-} from '@guardian/common';
-import { emptyNotifier, INotifier } from '@helpers/notifier';
-import { importTag } from '@api/helpers/tag-import-export-helper';
-import { createSchema, fixSchemaDefsOnImport, getDefs, ImportResult, onlyUnique, SchemaImportResult } from './schema-helper';
-import geoJson from '@guardian/interfaces/dist/helpers/geojson-schema/geo-json';
+import { GenerateUUIDv4, ISchema, ModelHelper, ModuleStatus, Schema, SchemaCategory, SchemaEntity, SchemaHelper, SchemaStatus } from '@guardian/interfaces';
+import { DatabaseServer, Logger, MessageAction, MessageServer, MessageType, replaceValueRecursive, Schema as SchemaCollection, SchemaConverterUtils, SchemaMessage, Tag, TagMessage, UrlType } from '@guardian/common';
+import { emptyNotifier, INotifier } from '../../helpers/notifier.js';
+import { importTag } from '../../api/helpers/tag-import-export-helper.js';
+import { createSchema, fixSchemaDefsOnImport, getDefs, ImportResult, onlyUnique, SchemaImportResult } from './schema-helper.js';
+import geoJson from '@guardian/interfaces/dist/helpers/geojson-schema/geo-json.js';
+import sentinelHub from '@guardian/interfaces/dist/helpers/sentinel-hub/sentinel-hub-schema.js';
 
 export class SchemaCache {
     /**
@@ -176,6 +154,20 @@ export async function getSchemaCategory(topicId: string): Promise<SchemaCategory
     return SchemaCategory.POLICY;
 }
 
+export async function getSchemaTarget(topicId: string): Promise<any> {
+    if (topicId) {
+        const tool = await DatabaseServer.getTool({ topicId });
+        if (tool) {
+            return { category: SchemaCategory.TOOL, target: tool };
+        }
+        const policy = await DatabaseServer.getPolicy({ topicId });
+        if (policy) {
+            return { category: SchemaCategory.POLICY, target: policy };
+        }
+    }
+    return null;
+}
+
 /**
  * Import schema by files
  * @param owner
@@ -187,7 +179,9 @@ export async function importSchemaByFiles(
     owner: string,
     files: ISchema[],
     topicId: string,
-    notifier: INotifier
+    notifier: INotifier,
+    skipGenerateId = false,
+    outerSchemasMapping?: { name: string, iri: string }[]
 ): Promise<ImportResult> {
     notifier.start('Import schemas');
 
@@ -196,7 +190,7 @@ export async function importSchemaByFiles(
 
     for (const file of files) {
         const oldUUID = file.iri ? file.iri.substring(1) : null;
-        const newUUID = GenerateUUIDv4();
+        const newUUID = skipGenerateId ? oldUUID : GenerateUUIDv4();
         schemasMap.push({
             oldID: file.id,
             newID: null,
@@ -213,12 +207,25 @@ export async function importSchemaByFiles(
         file.uuid = newUUID;
         file.iri = '#' + newUUID;
         file.documentURL = null;
-        file.contextURL = null;
+        file.contextURL = `schema:${file.uuid}`;
         file.messageId = null;
         file.creator = owner;
         file.owner = owner;
         file.topicId = topicId || 'draft';
         file.status = SchemaStatus.DRAFT;
+        if (file.document?.$defs && outerSchemasMapping) {
+            for (const def of Object.values(file.document.$defs)) {
+                if (!def || uuidMap.has(def.$id)) {
+                    continue;
+                }
+                const subSchemaMapping = outerSchemasMapping.find(
+                    (item) => item.name === def.title
+                );
+                if (subSchemaMapping) {
+                    uuidMap.set(def.$id, subSchemaMapping.iri);
+                }
+            }
+        }
     }
 
     notifier.info(`Found ${files.length} schemas`);
@@ -235,8 +242,10 @@ export async function importSchemaByFiles(
 
     const tools = await DatabaseServer.getTools({ status: ModuleStatus.PUBLISHED }, { fields: ['topicId'] });
     const toolSchemas = await DatabaseServer.getSchemas({ topicId: { $in: tools.map(t => t.topicId) } });
+
     const updatedSchemasMap = {
-        '#GeoJSON': geoJson
+        '#GeoJSON': geoJson as any as Schema,
+        '#SentinelHUB': sentinelHub as any as Schema
     };
     const parsedSchemas: Schema[] = [];
     for (const item of files) {
