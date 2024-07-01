@@ -26,13 +26,18 @@ export class PreviewPolicyDialog {
     public tool!: any;
     public xlsx!: any;
     public errors!: any;
-    public toolForm?: FormGroup;
+    public toolForm!: FormGroup;
     public isFile?: boolean;
+
+    public get valid(): boolean {
+        return (this.policy || this.module || this.tool) && this.toolForm.valid;
+    }
 
     constructor(
         public ref: DynamicDialogRef,
         public config: DynamicDialogConfig
     ) {
+        this.toolForm = new FormGroup({});
         if (this.config.data.policy) {
             const importFile = this.config.data.policy;
 
@@ -68,7 +73,6 @@ export class PreviewPolicyDialog {
                 .join(', ');
 
             this.toolConfigs = importFile.tools || [];
-            this.toolForm = new FormGroup({});
             for (const toolConfigs of this.toolConfigs) {
                 this.toolForm.addControl(
                     toolConfigs.messageId,
@@ -89,7 +93,6 @@ export class PreviewPolicyDialog {
             this.isFile = this.config.data.isFile;
             this.toolConfigs = this.config.data.tool.tools || [];
             if (this.isFile) {
-                this.toolForm = new FormGroup({});
                 for (const toolConfigs of this.toolConfigs) {
                     this.toolForm.addControl(
                         toolConfigs.messageId,
@@ -115,14 +118,14 @@ export class PreviewPolicyDialog {
                 })
                 .join(', ');
 
-                const tools = this.xlsx.tools || [];
-                this.tools = tools
-                    .map((s: any) => {
-                        return s.name;
-                    })
-                    .join(', ');
+            const tools = this.xlsx.tools || [];
+            this.tools = tools
+                .map((s: any) => {
+                    return s.name;
+                })
+                .join(', ');
 
-                tools
+            tools
             this.errors = this.xlsx.errors || [];
             for (const error of this.errors) {
                 if (error.cell) {

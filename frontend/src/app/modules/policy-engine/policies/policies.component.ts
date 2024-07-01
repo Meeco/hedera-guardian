@@ -1,7 +1,7 @@
-import { ChangeDetectorRef, Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { ContractType, IUser, PolicyType, Schema, SchemaHelper, TagType, Token, UserRole } from '@guardian/interfaces';
+import { ContractType, IUser, PolicyType, Schema, SchemaHelper, TagType, Token, UserPermissions } from '@guardian/interfaces';
 import { PolicyEngineService } from 'src/app/services/policy-engine.service';
 import { ProfileService } from 'src/app/services/profile.service';
 import { TokenService } from 'src/app/services/token.service';
@@ -30,6 +30,78 @@ import { DiscontinuePolicy } from '../dialogs/discontinue-policy/discontinue-pol
 import { MigrateData } from '../dialogs/migrate-data/migrate-data.component';
 import { ContractService } from 'src/app/services/contract.service';
 
+const columns = [{
+    id: 'name',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'description',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'topic',
+    permissions: (user: UserPermissions) => {
+        return (
+            user.POLICIES_POLICY_CREATE ||
+            user.POLICIES_POLICY_UPDATE ||
+            user.POLICIES_POLICY_REVIEW ||
+            user.POLICIES_POLICY_DELETE
+        )
+    }
+}, {
+    id: 'roles',
+    permissions: (user: UserPermissions) => {
+        return !(
+            user.POLICIES_POLICY_CREATE ||
+            user.POLICIES_POLICY_UPDATE ||
+            user.POLICIES_POLICY_REVIEW ||
+            user.POLICIES_POLICY_DELETE
+        )
+    }
+}, {
+    id: 'version',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'tags',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'tokens',
+    permissions: (user: UserPermissions) => {
+        return user.TOKENS_TOKEN_READ;
+    }
+}, {
+    id: 'schemas',
+    permissions: (user: UserPermissions) => {
+        return user.SCHEMAS_SCHEMA_READ;
+    }
+}, {
+    id: 'status',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'instance',
+    permissions: (user: UserPermissions) => {
+        return true;
+    }
+}, {
+    id: 'operations',
+    permissions: (user: UserPermissions) => {
+        return (
+            user.POLICIES_POLICY_CREATE ||
+            user.POLICIES_POLICY_UPDATE ||
+            user.POLICIES_POLICY_REVIEW ||
+            user.POLICIES_POLICY_DELETE
+        )
+    }
+}];
+
 /**
  * Component for choosing a policy and
  * display blocks of the selected policy
@@ -40,8 +112,8 @@ import { ContractService } from 'src/app/services/contract.service';
     styleUrls: ['./policies.component.scss'],
 })
 export class PoliciesComponent implements OnInit {
+    public user: UserPermissions = new UserPermissions();
     public policies: any[] | null;
-    public role!: any;
     public loading: boolean = true;
     public isConfirmed: boolean = false;
     public pageIndex: number;
@@ -54,7 +126,6 @@ export class PoliciesComponent implements OnInit {
     public publishMenuSelector: any = null;
     public noFilterResults: boolean = false;
     private columns: string[] = [];
-    private columnsRole: any = {};
     private publishMenuOption = [
         {
             id: 'Publish',
@@ -114,7 +185,6 @@ export class PoliciesComponent implements OnInit {
         policyName: new FormControl(''),
         tag: new FormControl(''),
     }, (fg) => {
-
         for (const key in (fg as FormGroup).controls) {
             if (!fg.get(key)) {
                 continue;
@@ -129,6 +199,14 @@ export class PoliciesComponent implements OnInit {
         };
     });
 
+    public checkMigrationStatus(status: string): boolean {
+        return (
+            status === 'PUBLISH' ||
+            status === 'DRY-RUN' ||
+            status === 'DISCONTINUED'
+        )
+    }
+
     constructor(
         public tagsService: TagsService,
         private profileService: ProfileService,
@@ -142,7 +220,6 @@ export class PoliciesComponent implements OnInit {
         private wizardService: WizardService,
         private tokenService: TokenService,
         private analyticsService: AnalyticsService,
-        private changeDetector: ChangeDetectorRef,
         private contractSerivce: ContractService,
         @Inject(CONFIGURATION_ERRORS)
         private _configurationErrors: Map<string, any>
@@ -151,29 +228,6 @@ export class PoliciesComponent implements OnInit {
         this.pageIndex = 0;
         this.pageSize = 10;
         this.policiesCount = 0;
-        this.columnsRole = {};
-        this.columnsRole[UserRole.STANDARD_REGISTRY] = [
-            'name',
-            'description',
-            // 'roles',
-            'topic',
-            'version',
-            'tags',
-            'tokens',
-            'schemas',
-            'status',
-            'instance',
-            'operations',
-        ];
-        this.columnsRole[UserRole.USER] = [
-            'name',
-            'description',
-            'roles',
-            'version',
-            'tags',
-            'status',
-            'instance',
-        ];
     }
 
     ngOnInit() {
@@ -189,29 +243,26 @@ export class PoliciesComponent implements OnInit {
         forkJoin([
             this.profileService.getProfile(),
             this.tagsService.getPublishedSchemas(),
-        ]).subscribe(
-            (value) => {
-                const profile: IUser | null = value[0];
-                const tagSchemas: any[] = value[1] || [];
+        ]).subscribe((value) => {
+            const profile: IUser | null = value[0];
+            const tagSchemas: any[] = value[1] || [];
+            this.isConfirmed = !!(profile && profile.confirmed);
+            this.user = new UserPermissions(profile);
+            this.owner = this.user.did;
+            this.tagSchemas = SchemaHelper.map(tagSchemas);
 
-                this.isConfirmed = !!(profile && profile.confirmed);
-                this.role = profile ? profile.role : null;
-                this.owner = profile?.did;
-                this.tagSchemas = SchemaHelper.map(tagSchemas);
+            this.columns = columns
+                .filter((c) => c.permissions(this.user))
+                .map((c) => c.id);
 
-                if (this.role == UserRole.STANDARD_REGISTRY) {
-                    this.columns = this.columnsRole[UserRole.STANDARD_REGISTRY];
-                } else {
-                    this.columns = this.columnsRole[UserRole.USER];
-                }
-                if (this.isConfirmed) {
-                    this.loadAllPolicy();
-                } else {
-                    setTimeout(() => {
-                        this.loading = false;
-                    }, 500);
-                }
-            },
+            if (this.isConfirmed) {
+                this.loadAllPolicy();
+            } else {
+                setTimeout(() => {
+                    this.loading = false;
+                }, 500);
+            }
+        },
             (e) => {
                 this.loading = false;
             }
@@ -221,8 +272,8 @@ export class PoliciesComponent implements OnInit {
     private loadAllPolicy() {
         this.loading = true;
         this.tagOptions = [];
-        this.policyEngineService.page(this.pageIndex, this.pageSize).subscribe(
-            (policiesResponse) => {
+        this.policyEngineService.page(this.pageIndex, this.pageSize)
+            .subscribe((policiesResponse) => {
                 this.policies = policiesResponse.body?.map(policy => {
                     if (policy.discontinuedDate) {
                         policy.discontinuedDate = new Date(policy.discontinuedDate);
@@ -232,37 +283,41 @@ export class PoliciesComponent implements OnInit {
                 this.policiesCount =
                     policiesResponse.headers.get('X-Total-Count') ||
                     this.policies.length;
-                const ids = this.policies.map((e) => e.id);
-                this.tagsService.search(this.tagEntity, ids).subscribe(
-                    (data) => {
-                        if (this.policies) {
-                            for (const policy of this.policies) {
-                                (policy as any)._tags = data[policy.id];
-                                data[policy.id]?.tags.forEach((tag: any) => {
-                                    const totalTagOptions = [
-                                        ...this.tagOptions,
-                                        tag.name,
-                                    ];
-                                    this.tagOptions = [
-                                        ...new Set(totalTagOptions),
-                                    ];
-                                });
-                            }
-                        }
-                        setTimeout(() => {
-                            this.loading = false;
-                        }, 500);
-                    },
-                    (e) => {
-                        console.error(e.error);
-                        this.loading = false;
-                    }
-                );
-            },
-            (e) => {
+
+                this.loadPolicyTags(this.policies);
+            }, (e) => {
                 this.loading = false;
-            }
-        );
+            });
+    }
+
+    private loadPolicyTags(policies: any[]) {
+        if (!this.user.TAGS_TAG_READ || !policies || !policies.length) {
+            setTimeout(() => {
+                this.loading = false;
+            }, 500);
+        } else {
+            const ids = policies.map((e) => e.id);
+            this.tagsService.search(this.tagEntity, ids).subscribe((data) => {
+                for (const policy of policies) {
+                    (policy as any)._tags = data[policy.id];
+                    data[policy.id]?.tags.forEach((tag: any) => {
+                        const totalTagOptions = [
+                            ...this.tagOptions,
+                            tag.name,
+                        ];
+                        this.tagOptions = [
+                            ...new Set(totalTagOptions),
+                        ];
+                    });
+                }
+                setTimeout(() => {
+                    this.loading = false;
+                }, 500);
+            }, (e) => {
+                console.error(e.error);
+                this.loading = false;
+            });
+        }
     }
 
     public onPage(event: any): void {
@@ -822,33 +877,25 @@ export class PoliciesComponent implements OnInit {
     public comparePolicy(policyId?: any) {
         const item = this.policies?.find((e) => e.id === policyId);
         const dialogRef = this.dialogService.open(ComparePolicyDialog, {
-            header: 'Compare Policy',
-            width: '650px',
+            header: 'Policy Comparison',
+            width: '900px',
             styleClass: 'custom-dialog',
             data: {
-                policy: item,
-                policies: this.policies,
+                policy: item
             },
         });
         dialogRef.onClose.subscribe(async (result) => {
-            if (result && result.policyIds) {
-                const policyIds: string[] = result.policyIds;
-                if (policyIds.length === 2) {
-                    this.router.navigate(['/compare'], {
-                        queryParams: {
-                            type: 'policy',
-                            policyId1: policyIds[0],
-                            policyId2: policyIds[1],
-                        },
-                    });
-                } else {
-                    this.router.navigate(['/compare'], {
-                        queryParams: {
-                            type: 'multi-policy',
-                            policyIds: policyIds,
-                        },
-                    });
-                }
+            if (result) {
+                const items = btoa(JSON.stringify({
+                    parent: null,
+                    items: result
+                }));
+                this.router.navigate(['/compare'], {
+                    queryParams: {
+                        type: 'policy',
+                        items
+                    },
+                });
             }
         });
     }
@@ -864,7 +911,11 @@ export class PoliciesComponent implements OnInit {
                     styleClass: 'custom-dialog',
                     data: {
                         policy: item,
-                        policies: this.policies?.filter(item => [PolicyType.PUBLISH, PolicyType.DISCONTINUED, PolicyType.DRY_RUN].includes(item.status)),
+                        policies: this.policies?.filter(item => [
+                            PolicyType.PUBLISH,
+                            PolicyType.DISCONTINUED,
+                            PolicyType.DRY_RUN
+                        ].includes(item.status)),
                         contracts: res.body
                     },
                 });
@@ -1049,36 +1100,76 @@ export class PoliciesComponent implements OnInit {
         return this.tagOptions.length > 0;
     }
 
-    public searchPolicy(policyId: any) {
-        this.loading = true;
-        this.analyticsService.searchPolicies({ policyId }).subscribe(
-            (data) => {
-                this.loading = false;
-                if (!data || !data.result) {
-                    return;
-                }
-                const { target, result } = data;
-                const list = result.sort((a: any, b: any) =>
-                    a.rate > b.rate ? -1 : 1
-                );
-                const policy = target;
-                this.dialog.open(SearchPolicyDialog, {
-                    panelClass: 'g-dialog',
-                    disableClose: true,
-                    autoFocus: false,
-                    data: {
-                        header: 'Result',
-                        policy,
-                        policyId,
-                        list,
+    public searchPolicy(policyId?: any) {
+        const item = this.policies?.find((e) => e.id === policyId);
+        const dialogRef = this.dialogService.open(SearchPolicyDialog, {
+            showHeader: false,
+            width: '1100px',
+            styleClass: 'custom-dialog custom-header-dialog',
+            data: {
+                policy: item
+            }
+        });
+        dialogRef.onClose.subscribe(async (result) => {
+            if (result) {
+                const items = btoa(JSON.stringify({
+                    parent: null,
+                    items: result
+                }));
+                this.router.navigate(['/compare'], {
+                    queryParams: {
+                        type: 'policy',
+                        items
                     },
                 });
-            },
-            ({ message }) => {
-                this.loading = false;
-                console.error(message);
             }
-        );
+        });
+
+
+
+
+
+
+
+        // this.loading = true;
+        // const options = {
+        //     policyId,
+        //     type: 'Global',
+        //     // text,
+        //     // owner,
+        //     // minVcCount,
+        //     // minVpCount,
+        //     // minTokensCount,
+        //     // threshold
+        // }
+        // this.analyticsService.searchPolicies(options).subscribe(
+        //     (data) => {
+        //         this.loading = false;
+        //         if (!data || !data.result) {
+        //             return;
+        //         }
+        //         const { target, result } = data;
+        //         const list = result.sort((a: any, b: any) =>
+        //             a.rate > b.rate ? -1 : 1
+        //         );
+        //         const policy = target;
+        //         this.dialog.open(SearchPolicyDialog, {
+        //             panelClass: 'g-dialog',
+        //             disableClose: true,
+        //             autoFocus: false,
+        //             data: {
+        //                 header: 'Result',
+        //                 policy,
+        //                 policyId,
+        //                 list,
+        //             },
+        //         });
+        //     },
+        //     ({ message }) => {
+        //         this.loading = false;
+        //         console.error(message);
+        //     }
+        // );
     }
 
     public openSuggestionsDialog() {
@@ -1106,7 +1197,7 @@ export class PoliciesComponent implements OnInit {
     }
 
     public onChangeStatus(event: any, policy: any): void {
-        switch(policy.status) {
+        switch (policy.status) {
             case 'DRAFT':
                 this.onPublishAction(event, policy);
                 break;

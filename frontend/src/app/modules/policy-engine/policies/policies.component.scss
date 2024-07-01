@@ -1,4 +1,5 @@
-.content {
+.content,
+.min-content {
     position: absolute;
     left: 0;
     right: 0;
@@ -8,8 +9,20 @@
     margin: 56px 48px 0 48px;
 }
 
-.content[role="USER"] {
+.min-content {
     min-width: 1200px;
+}
+
+.actions-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    z-index: 2;
+    margin-top: 24px;
+
+    .actions-container-btns {
+        margin-left: auto;
+    }
 }
 
 .loading {
@@ -101,21 +114,8 @@
     color: darkgrey;
 }
 
-.actions-container {
-    display: none;
-    z-index: 2;
-    margin-top: 24px;
-}
-
 .ml-8 {
     margin-left: 8px;
-}
-
-.actions-container[role="STANDARD_REGISTRY"],
-.actions-container[role="ROOT_AUTHORITY"] {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: nowrap;
 }
 
 .policy-filters {
@@ -208,6 +208,7 @@
 }
 
 .btn-icon-edit,
+.btn-icon-menu,
 .btn-icon-delete,
 .btn-icon-import,
 .btn-icon-delete-des {
@@ -218,15 +219,28 @@
     height: 30px;
     min-width: 25px;
     margin-left: 6px;
+    border-radius: 6px;
+    padding: 1px;
 }
 
 .btn-icon-import,
+.btn-icon-menu,
 .btn-icon-edit {
     color: #3f51b5;
 }
 
 .btn-icon-delete {
     color: #f44336;
+}
+
+.btn-icon-menu {
+    padding: 3px !important;
+}
+
+.btn-icon-edit:hover,
+.btn-icon-menu:hover {
+    background: #e1e7fa;
+    box-shadow: 0px 0px 0px 5px #e1e7fa;
 }
 
 .btn-icon-delete mat-icon,
@@ -373,11 +387,13 @@
 .commands-line {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    padding-right: 12px;
 }
 
 
 .commands-line>* {
-    margin-left: 20px;
+    margin-left: 0px;
 }
 
 .commands-line>*:not(:first-child) {
@@ -843,4 +859,20 @@
 
 .opacity-icon:hover {
     opacity: 1.0;
+}
+
+@media screen and (max-width: 1450px) {
+    .actions-container {
+        flex-direction: column !important;
+        align-items: flex-start !important;    
+    }
+
+    .actions-container-btns {
+        margin-left: 0px !important;
+        margin-top: 16px !important;
+
+        & > *:first-of-type {
+            margin-left: 0px !important;
+        }
+    }
 }
